@@ -41,6 +41,26 @@ def api_json(url: str, payload: dict, timeout: int = 180) -> dict:
         raise RuntimeError(f"Cannot connect to Re:Link AI: {error.reason}") from None
 
 
+def load_manifest() -> dict:
+    params = urllib.parse.urlencode({"job_id": os.environ["JOB_ID"], "run_id": os.environ["GITHUB_RUN_ID"]})
+    request = urllib.request.Request(os.environ["MANIFEST_URL"] + "?" + params,
+        headers={"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"], "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            manifest = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"Could not load private job manifest (HTTP {error.code}).") from None
+    os.environ["USER_ID"] = manifest["userId"]
+    os.environ["PROJECT_ID"] = manifest["projectId"]
+    os.environ["JOB_EXPIRES"] = manifest["expires"]
+    os.environ["JOB_SIGNATURE"] = manifest["signature"]
+    os.environ["ASSETS_JSON"] = json.dumps(manifest["assets"])
+    os.environ["TARGET_DURATION"] = str(manifest["targetDuration"])
+    os.environ["SELECTED_GENRE"] = manifest["genre"]
+    os.environ["EDIT_INSTRUCTIONS"] = manifest.get("instructions", "")
+    return manifest
+
+
 def download_assets() -> list[dict]:
     assets = json.loads(os.environ["ASSETS_JSON"])
     if not isinstance(assets, list) or not 1 <= len(assets) <= 10:
@@ -299,6 +319,7 @@ def main() -> None:
     if not API_KEY:
         raise RuntimeError("RELINK_API_KEY repository secret is missing.")
     WORK.mkdir(exist_ok=True)
+    load_manifest()
     assets = download_assets()
     print("Transcribing dialogue with local Whisper tiny model...")
     transcripts = transcribe(assets)
