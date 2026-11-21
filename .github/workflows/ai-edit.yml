@@ -78,6 +78,15 @@ jobs:
           RELINK_BASE_URL: https://api.relink-gateway.biz.id/v1
           RELINK_VISION_MODEL: deepseek-v4.1-flash
         run: python3 scripts/ai_edit.py
+      - name: Report failure to dashboard
+        if: failure()
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          USER_ID: ${{ inputs.user_id }}
+          JOB_EXPIRES: ${{ inputs.expires }}
+          JOB_SIGNATURE: ${{ inputs.signature }}
+          FAILURE_REPORT_URL: https://ai-video-factory-43b.pages.dev/api/jobs/failure
+        run: python3 scripts/report_failure.py
       - name: Upload preview artifact
         uses: actions/upload-artifact@v4
         with:
