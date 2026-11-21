@@ -52,7 +52,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     body: JSON.stringify({ ref: "main", inputs: { job_id: jobId } })
   });
   if (!dispatch.ok) {
-    const message = dispatch.status === 404 ? "GitHub tidak menemukan workflow AI edit. Pastikan file workflow sudah terpasang." : dispatch.status === 401 || dispatch.status === 403 ? "Token GitHub tidak memiliki izin Actions: Read and write atau sudah kedaluwarsa." : "GitHub gagal menerima antrean editing (HTTP " + dispatch.status + ").";
+    const raw = await dispatch.text();
+    let githubMessage = "";
+    try { githubMessage = (JSON.parse(raw) as { message?: string }).message || ""; } catch { /* keep response generic */ }
+    let message: string;
+    if (dispatch.status === 404) {
+      message = "GitHub tidak menemukan workflow AI edit. Pastikan file .github/workflows/ai-edit.yml aktif di branch main.";
+    } else if (dispatch.status === 401) {
+      message = "GitHub menolak token (401). Token kemungkinan salah, dicabut, atau kedaluwarsa. Perbarui secret GH_DISPATCH_TOKEN di Cloudflare Pages.";
+    } else if (dispatch.status === 403) {
+      message = "GitHub menolak izin token (403). PAT harus memiliki Repository access ke Alvanza0904/ai-video-factory dan izin Actions: Read and write. Detail GitHub: " + (githubMessage || "Resource not accessible.");
+    } else {
+      message = "GitHub gagal menerima antrean editing (HTTP " + dispatch.status + "). " + (githubMessage || "");
+    }
     await env.MEDIA_BUCKET.delete(`private-jobs/${jobId}/manifest.json`);
     await supabase(request, env, `/rest/v1/editing_jobs?id=eq.${jobId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "failed", error_message: message }) });
     return json({ error: message }, 502);
