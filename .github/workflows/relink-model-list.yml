@@ -1,0 +1,22 @@
+name: ReLink Available Model Catalog
+
+on:
+  push:
+    paths:
+      - "scripts/relink_models.py"
+      - ".github/workflows/relink-model-list.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  list-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read model catalog without inference
+        env:
+          RELINK_API_KEY: ${{ secrets.RELINK_API_KEY }}
+          RELINK_BASE_URL: https://api.relink-gateway.biz.id/v1
+        run: python3 scripts/relink_models.py
