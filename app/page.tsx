@@ -26,7 +26,7 @@ export default function Home() {
   const [notice, setNotice] = useState("Masuk untuk membuat proyek dan mengunggah footage langsung dari HP.");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [session, setSession] = useState<{access_token:string; user:{id:string;email:string}}|null>(null);
+  const [session, setSession] = useState<{access_token:string; user:{id:string;email?:string}}|null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [projectName, setProjectName] = useState("Konten JAECOO Baru");
