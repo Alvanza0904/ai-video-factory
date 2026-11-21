@@ -52,3 +52,7 @@ Never commit API keys, Supabase service-role keys, R2 credentials, signed URLs, 
 ## Cost and privacy notes
 
 GitHub Actions usage, artifact limits, and retention depend on GitHub's current plan and policies. Public repository runner eligibility does not make storage, AI tokens, hosting, or every external service unlimited or universally free. Source videos should be private objects in storage, accessed with short-lived signed URLs.
+
+## Hosting
+
+The initial mobile-first dashboard is configured for Cloudflare Pages static export at `https://ai-video-factory-43b.pages.dev`. The Pages project is connected to this public GitHub repository. Production deployment must be verified after the first build completes.
