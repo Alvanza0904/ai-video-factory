@@ -1,0 +1,11 @@
+name = "ai-video-factory"
+pages_build_output_dir = "./out"
+compatibility_date = "2026-11-21"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "ai-video-factory-media"
+
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "https://sdmnhhgcenhzfnvzwyzo.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_uxSrstD_fl3oJS1BkfvtkA__KzQtI7A"
