@@ -11,6 +11,10 @@ on:
         description: "Owner UUID"
         required: true
         type: string
+      project_id:
+        description: "Project UUID"
+        required: true
+        type: string
       expires:
         description: "Signed URL expiry"
         required: true
@@ -61,6 +65,7 @@ jobs:
         env:
           JOB_ID: ${{ inputs.job_id }}
           USER_ID: ${{ inputs.user_id }}
+          PROJECT_ID: ${{ inputs.project_id }}
           JOB_EXPIRES: ${{ inputs.expires }}
           JOB_SIGNATURE: ${{ inputs.signature }}
           ASSETS_JSON: ${{ inputs.assets_json }}
