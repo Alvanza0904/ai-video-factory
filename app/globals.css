@@ -41,7 +41,7 @@ h1 em{font-style:normal;color:var(--accent)}
 .notice{margin:24px 0 34px;background:#171e19;border:1px solid #34472b;border-radius:10px;padding:13px 15px;display:flex;align-items:flex-start;gap:10px;color:#c6d5b4;font-size:11px;line-height:1.6}
 .notice svg{color:var(--accent);flex-shrink:0}
 .section{margin-top:35px;scroll-margin-top:90px}
-.section-heading{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:15px}
+.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:15px}
 h2{font:700 21px Manrope;letter-spacing:-.6px;margin:7px 0 0}
 .muted{color:var(--muted)}.small{font-size:10px}.tiny{font-size:10px}
 .project-panel{display:flex;gap:20px;padding:21px;background:var(--panel);border:1px solid var(--line);border-radius:14px;align-items:center}
