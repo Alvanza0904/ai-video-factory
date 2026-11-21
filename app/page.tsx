@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Clapperboard, Cloud, Film, Github, HardDrive, Layers3, LogOut, Menu, Settings2, Sparkles, UploadCloud, WandSparkles, X, Play, FolderPlus, CheckCircle2 } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const API = "https://sdmnhhgcenhzfnvzwyzo.supabase.co";
+const ANON = "sb_publishable_uxSrstD_fl3oJS1BkfvtkA__KzQtI7A";
 const genres = [
   { name: "Cinematic", detail: "Automotive, product, travel", icon: "🎬" },
   { name: "Drama & Story", detail: "Dialog, emotion, storytelling", icon: "🎭" },
