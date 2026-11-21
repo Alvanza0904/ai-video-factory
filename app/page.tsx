@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  Activity, ArrowUpRight, Clapperboard, Cloud, Film, FolderOpen,
-  Gauge, Github, HardDrive, Layers3, Menu, Settings2, ShieldCheck,
+  Activity, ArrowUpRight, Clapperboard, Cloud, Film,
+  Gauge, Github, HardDrive, Layers3, Menu, Settings2,
   Sparkles, UploadCloud, WandSparkles, X
 } from "lucide-react";
 
