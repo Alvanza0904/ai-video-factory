@@ -19,6 +19,8 @@ type AuthResponse = { access_token?: string; user?: { id: string; email?: string
 type UploadInit = { key: string; uploadId: string; assetId: string; error?: string };
 type UploadPart = { etag: string; error?: string };
 type UploadComplete = { asset: Asset; error?: string };
+type JobResponse = { jobId?: string; error?: string; success?: boolean };
+type JobStatus = { job?: { status: string; progress: number; error_message?: string | null }; outputUrl?: string | null; error?: string };
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -31,6 +33,9 @@ export default function Home() {
   const [projectId, setProjectId] = useState("");
   const [projectName, setProjectName] = useState("Konten JAECOO Baru");
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [jobId, setJobId] = useState("");
+  const [jobStatus, setJobStatus] = useState("");
+  const [outputUrl, setOutputUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [duration, setDuration] = useState("45");
@@ -45,6 +50,29 @@ export default function Home() {
   useEffect(() => {
     if (session) { loadProjects(session.access_token); }
   }, [session]);
+
+  useEffect(() => {
+    if (session && projectId) { loadAssets(session.access_token, projectId); }
+  }, [session, projectId]);
+
+  useEffect(() => {
+    if (!session || !jobId) return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/jobs/status?job_id=" + encodeURIComponent(jobId), { headers: { Authorization: "Bearer " + session.access_token } });
+        const data = await response.json() as JobStatus;
+        if (!response.ok) throw new Error(data.error || "Gagal memeriksa status editing.");
+        if (!active || !data.job) return;
+        setJobStatus(data.job.status);
+        if (data.job.status === "completed" && data.outputUrl) { setOutputUrl(data.outputUrl); setNotice("AI editing selesai. Video final sudah siap diputar."); }
+        else if (data.job.status === "failed") { setNotice(data.job.error_message || "Proses editing gagal. Cek detail job."); }
+      } catch (error) { if (active) setNotice((error as Error).message); }
+    };
+    void poll();
+    const timer = window.setInterval(poll, 10000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [session, jobId]);
 
   async function auth(mode: "signup"|"login") {
     setBusy(true);
@@ -66,6 +94,26 @@ export default function Home() {
       if(!r.ok) throw new Error("Gagal memuat proyek");
       const rows=await r.json() as Project[]; setProjects(rows); if(rows.length && !projectId) setProjectId(rows[0].id);
     } catch(e) { setNotice((e as Error).message); }
+  }
+
+  async function loadAssets(token: string, selectedProjectId: string) {
+    try {
+      const response = await fetch(API + "/rest/v1/media_assets?select=id,original_filename,upload_status,size_bytes&project_id=eq." + encodeURIComponent(selectedProjectId) + "&upload_status=eq.uploaded&asset_type=eq.video&order=created_at.asc", { headers: { apikey: ANON, Authorization: "Bearer " + token } });
+      if (!response.ok) throw new Error("Gagal memuat daftar footage.");
+      setAssets(await response.json() as Asset[]);
+    } catch (error) { setNotice((error as Error).message); }
+  }
+
+  async function startEditing() {
+    if (!session || !projectId || assets.length === 0) { setNotice("Pilih proyek dan unggah minimal satu video terlebih dahulu."); return; }
+    setBusy(true); setOutputUrl(""); setJobStatus("queued");
+    try {
+      const response = await fetch("/api/jobs/create", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ projectId, assetIds: assets.map(asset => asset.id), genre: selectedGenre, targetDuration: Number(duration), instructions }) });
+      const data = await response.json() as JobResponse;
+      if (!response.ok || !data.jobId) throw new Error(data.error || "Tidak dapat memulai AI editing.");
+      setJobId(data.jobId); setJobStatus("analyzing"); setNotice("AI Director mulai membaca footage, dialog, dan adegan. Proses berjalan di cloud.");
+    } catch (error) { setJobStatus("failed"); setNotice((error as Error).message); }
+    finally { setBusy(false); }
   }
 
   async function createProject() {
@@ -100,6 +148,7 @@ export default function Home() {
         setAssets(prev=>[...prev,result.asset]);
       }
       setNotice(all.length+" file selesai diunggah ke Cloudflare R2."); setProgress("");
+      await loadAssets(session.access_token, projectId);
     } catch(e) { setNotice((e as Error).message); setProgress(""); }
     finally { setBusy(false); if(fileRef.current) fileRef.current.value=""; }
   }
@@ -124,11 +173,11 @@ export default function Home() {
           <div className="section-heading"><div><div className="eyebrow">START CREATING</div><h2>Proyek & footage</h2></div><button className="text-button" onClick={logout}><LogOut size={14}/> Keluar</button></div>
           <div className="project-panel"><div className="project-copy"><h3>Kelola proyek konten</h3><div className="project-controls"><select value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Pilih proyek</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><input value={projectName} onChange={e=>setProjectName(e.target.value)} placeholder="Nama proyek baru"/><button className="secondary-button" onClick={createProject} disabled={busy}><FolderPlus size={16}/> Buat proyek</button></div></div></div>
           <div className="upload-card"><div className="upload-visual"><UploadCloud size={30}/><span>MULTI-CLIP UPLOAD</span></div><div className="project-copy"><h3>Upload banyak footage sekaligus</h3><p>Pilih beberapa video dari galeri. File dipecah menjadi beberapa bagian agar lebih stabil saat upload dari HP dan disimpan privat di Cloudflare R2.</p><input ref={fileRef} type="file" accept="video/*" multiple onChange={e=>uploadFiles(e.target.files)} disabled={busy||!projectId}/>{progress&&<div className="upload-progress">{progress}</div>}<div className="project-actions"><button className="primary-button" onClick={()=>fileRef.current?.click()} disabled={busy||!projectId}><UploadCloud size={17}/> Pilih video dari HP</button><span className="muted tiny">{busy?"Sedang memproses…":projectId?"Pilih beberapa klip sekaligus":"Pilih atau buat proyek dahulu"}</span></div></div></div>
-          {assets.length>0&&<div className="asset-list"><h3><CheckCircle2 size={17}/> Upload selesai</h3>{assets.map(a=><div key={a.id}>{a.original_filename} · {Math.round(a.size_bytes/1048576)} MB · {a.upload_status}</div>)}</div>}
-          <div className="editor-settings"><h3><WandSparkles size={17}/> Pengaturan AI Director</h3><label>Gaya editing</label><select value={selectedGenre} onChange={e=>setSelectedGenre(e.target.value)}><option value="auto">Deteksi otomatis</option><option value="cinematic">Cinematic</option><option value="drama">Drama & storytelling</option><option value="pov">POV</option><option value="comedy">Comedy & entertainment</option><option value="two_character">Satu aktor, dua karakter</option><option value="review">Review & talking head</option><option value="mixed">Mixed</option></select><label>Durasi target</label><select value={duration} onChange={e=>setDuration(e.target.value)}><option value="30">30 detik</option><option value="45">45 detik</option><option value="60">60 detik</option></select><label>Instruksi tambahan (opsional)</label><textarea value={instructions} onChange={e=>setInstructions(e.target.value)} placeholder="Contoh: fokus pada detail eksterior JAECOO J5, pertahankan dialog asli, tempo cepat…"/><button className="primary-button" disabled title="Antrean render AI sedang dalam tahap integrasi"><Play size={16}/> Mulai AI Editing <span className="soon">TAHAP BERIKUTNYA</span></button><p className="muted tiny">Upload R2 aktif setelah binding Cloudflare terpasang. Pipeline AI dan render belum aktif.</p></div>
+          {assets.length>0&&<div className="asset-list"><h3><CheckCircle2 size={17}/> {assets.length} footage siap diedit</h3>{assets.map(a=><div key={a.id}>{a.original_filename} · {Math.round(a.size_bytes/1048576)} MB · {a.upload_status}</div>)}</div>}
+          <div className="editor-settings"><h3><WandSparkles size={17}/> Pengaturan AI Director</h3><label>Gaya editing</label><select value={selectedGenre} onChange={e=>setSelectedGenre(e.target.value)}><option value="auto">Deteksi otomatis</option><option value="cinematic">Cinematic</option><option value="drama">Drama & storytelling</option><option value="pov">POV</option><option value="comedy">Comedy & entertainment</option><option value="two_character">Satu aktor, dua karakter</option><option value="review">Review & talking head</option><option value="mixed">Mixed</option></select><label>Durasi target</label><select value={duration} onChange={e=>setDuration(e.target.value)}><option value="30">30 detik</option><option value="45">45 detik</option><option value="60">60 detik</option></select><label>Instruksi tambahan (opsional)</label><textarea value={instructions} onChange={e=>setInstructions(e.target.value)} placeholder="Contoh: fokus pada detail eksterior JAECOO J5, pertahankan dialog asli, tempo cepat…"/><button className="primary-button" disabled={busy||!assets.length||!projectId} onClick={startEditing}><Play size={16}/> {busy?"Menyiapkan…":"Mulai AI Editing"}</button><p className="muted tiny">{assets.length ? "AI akan menganalisis semua footage terunggah, transkrip dialog, dan memilih adegan." : "Unggah footage terlebih dahulu untuk mengaktifkan AI editing."}</p>{jobId&&<div className="asset-list"><h3><Activity size={17}/> Status AI Editing</h3><div>Job: {jobId.slice(0,8)} · {jobStatus} · {jobStatus==="completed"?"100%":"sedang diproses"}</div>{outputUrl&&<video controls playsInline preload="metadata" src={outputUrl+"?job_id="+encodeURIComponent(jobId)} style={{width:"100%",borderRadius:12,marginTop:12}}/>}</div>}</div>
         </section>}
         <section className="section" id="genres"><div className="section-heading"><div><div className="eyebrow">UNIVERSAL AI DIRECTOR</div><h2>Semua genre, satu editor</h2></div><span className="muted small">Genre otomatis menjadi pilihan utama</span></div><div className="genre-grid">{genres.map(g=><button key={g.name} className={`genre-card ${selectedGenre===g.name.toLowerCase()?"genre-selected":""}`} onClick={()=>setSelectedGenre(g.name.toLowerCase())}><span className="genre-icon">{g.icon}</span><strong>{g.name}</strong><span>{g.detail}</span></button>)}</div><div className="genre-footer"><span>Preferensi: <strong>{selectedGenre==="auto"?"Auto-detect":selectedGenre}</strong></span><button className="text-button" onClick={()=>setSelectedGenre("auto")}>Kembali ke Auto-detect <ArrowUpRight size={14}/></button></div></section>
-        <section className="section" id="infrastructure"><div className="section-heading"><div><div className="eyebrow">CLOUD PIPELINE</div><h2>Infrastruktur</h2></div><span className="muted small">Komponen terhubung / proses</span></div><div className="infra-grid"><Infra icon={<Github size={18}/>} title="GitHub Actions" state="Workflow smoke test tersedia" detail="Cloud render worker"/><Infra icon={<WandSparkles size={18}/>} title="Re:Link Gateway" state="Secret perlu diverifikasi" detail="AI director & analysis"/><Infra icon={<HardDrive size={18}/>} title="Cloudflare R2" state="Bucket dibuat · binding perlu deploy" detail="Media storage"/><Infra icon={<Cloud size={18}/>} title="Supabase" state="Database & Auth aktif" detail="Auth, metadata, jobs"/></div></section>
+        <section className="section" id="infrastructure"><div className="section-heading"><div><div className="eyebrow">CLOUD PIPELINE</div><h2>Infrastruktur</h2></div><span className="muted small">Komponen terhubung / proses</span></div><div className="infra-grid"><Infra icon={<Github size={18}/>} title="GitHub Actions" state="Workflow smoke test tersedia" detail="Cloud render worker"/><Infra icon={<WandSparkles size={18}/>} title="Re:Link Gateway" state="Vision model sedang diuji" detail="AI director & analysis"/><Infra icon={<HardDrive size={18}/>} title="Cloudflare R2" state="Bucket & binding aktif" detail="Media storage"/><Infra icon={<Cloud size={18}/>} title="Supabase" state="Database & Auth aktif" detail="Auth, metadata, jobs"/></div></section>
         <footer><span>AI VIDEO FACTORY</span><span>Built for mobile-first creation · <a href="https://github.com/Alvanza0904/ai-video-factory" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={12}/></a></span></footer>
       </div>
     </section>
