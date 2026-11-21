@@ -1,11 +1,11 @@
 import { Env, json } from "../_shared";
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const token = request.headers.get("Authorization")?.replace(/^Bearer\\s+/i, "") || "";
+  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
   const url = new URL(request.url);
   const jobId = url.searchParams.get("job_id") || "";
   const runId = url.searchParams.get("run_id") || "";
-  if (!token || !/^\\d+$/.test(runId) || !jobId) return json({ error: "Identitas runner tidak lengkap." }, 400);
+  if (!token || !/^\d+$/.test(runId) || !jobId) return json({ error: "Identitas runner tidak lengkap." }, 400);
 
   const check = await fetch(`https://api.github.com/repos/Alvanza0904/ai-video-factory/actions/runs/${runId}`, {
     headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "AI-Video-Factory" }
