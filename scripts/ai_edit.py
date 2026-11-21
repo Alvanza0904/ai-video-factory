@@ -18,7 +18,7 @@ WORK = ROOT / "ai-edit-work"
 OUTPUT = ROOT / "ai-video-factory-final.mp4"
 BASE_URL = os.environ.get("RELINK_BASE_URL", "https://api.relink-gateway.biz.id/v1").rstrip("/")
 API_KEY = os.environ.get("RELINK_API_KEY", "")
-VISION_MODEL = os.environ.get("RELINK_VISION_MODEL", "deepseek-flash")
+VISION_MODEL = os.environ.get("RELINK_VISION_MODEL", "deepseek-v4.1-flash")
 
 
 def run(command: list[str], *, capture: bool = True) -> str:
