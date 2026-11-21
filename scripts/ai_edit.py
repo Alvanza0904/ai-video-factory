@@ -82,14 +82,14 @@ def transcribe(assets: list[dict]) -> dict[str, list[dict]]:
     transcripts: dict[str, list[dict]] = {}
     for asset in assets:
         audio = WORK / (Path(asset["path"]).stem + ".wav")
-        subprocess.run([
-            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", asset["path"],
-            "-vn", "-ac", "1", "-ar", "16000", str(audio)
-        ], check=True, capture_output=True)
         audio_probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=index", "-of", "csv=p=0", asset["path"]], capture_output=True, text=True).stdout.strip()
         if not audio_probe:
             transcripts[asset["id"]] = []
             continue
+        subprocess.run([
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", asset["path"],
+            "-vn", "-ac", "1", "-ar", "16000", str(audio)
+        ], check=True, capture_output=True)
         segments, _ = model.transcribe(str(audio), vad_filter=True, beam_size=1)
         transcripts[asset["id"]] = [
             {"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()}
