@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Video Factory Editing Blueprint v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "classification", "output", "scenes", "audio", "quality_checks"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_genre", "secondary_genres", "confidence", "story_summary", "mood"],
+      "properties": {
+        "primary_genre": { "enum": ["cinematic", "drama", "pov", "comedy", "two_character", "review", "mixed", "other"] },
+        "secondary_genres": { "type": "array", "items": { "enum": ["cinematic", "drama", "pov", "comedy", "two_character", "review", "mixed", "other"] }, "uniqueItems": true },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "story_summary": { "type": "string", "maxLength": 1800 },
+        "mood": { "type": "string", "maxLength": 120 }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "fps", "duration_seconds", "container", "video_codec", "audio_codec"],
+      "properties": {
+        "width": { "const": 1080 },
+        "height": { "const": 1920 },
+        "fps": { "const": 30 },
+        "duration_seconds": { "type": "integer", "minimum": 30, "maximum": 60 },
+        "container": { "const": "mp4" },
+        "video_codec": { "const": "h264" },
+        "audio_codec": { "const": "aac" }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scene_id", "asset_id", "source_in", "source_out", "timeline_start", "timeline_end", "purpose", "transition_in", "visual_profile", "captions", "audio_cues"],
+        "properties": {
+          "scene_id": { "type": "string" },
+          "asset_id": { "type": "string", "minLength": 1 },
+          "source_in": { "type": "number", "minimum": 0 },
+          "source_out": { "type": "number", "exclusiveMinimum": 0 },
+          "timeline_start": { "type": "number", "minimum": 0 },
+          "timeline_end": { "type": "number", "exclusiveMinimum": 0 },
+          "purpose": { "type": "string", "maxLength": 240 },
+          "character": { "type": ["string", "null"], "maxLength": 80 },
+          "transition_in": { "enum": ["cut", "fade", "dissolve", "whip", "match_cut", "none"] },
+          "speed": { "type": "number", "minimum": 0.5, "maximum": 2 },
+          "visual_profile": { "enum": ["natural", "cinematic_warm", "cinematic_cool", "dramatic", "clean_social", "neutral"] },
+          "captions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["text", "start", "end", "style"],
+              "properties": {
+                "text": { "type": "string", "maxLength": 180 },
+                "start": { "type": "number", "minimum": 0 },
+                "end": { "type": "number", "exclusiveMinimum": 0 },
+                "style": { "enum": ["clean", "bold", "emphasis", "speaker_label"] },
+                "speaker": { "type": ["string", "null"], "maxLength": 80 }
+              }
+            }
+          },
+          "audio_cues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "at", "duration", "gain_db"],
+              "properties": {
+                "kind": { "enum": ["music", "whoosh", "impact", "ambience", "comedy", "engine", "silence", "voiceover"] },
+                "at": { "type": "number", "minimum": 0 },
+                "duration": { "type": "number", "exclusiveMinimum": 0 },
+                "gain_db": { "type": "number", "minimum": -36, "maximum": 6 },
+                "asset_id": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["music_strategy", "voice_priority", "ducking_db", "master_peak_db"],
+      "properties": {
+        "music_strategy": { "enum": ["none", "subtle", "beat_sync", "dramatic", "comedy", "cinematic"] },
+        "voice_priority": { "type": "boolean" },
+        "ducking_db": { "type": "number", "minimum": -30, "maximum": 0 },
+        "master_peak_db": { "type": "number", "minimum": -12, "maximum": -1 }
+      }
+    },
+    "quality_checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dialogue_continuity", "no_unapproved_claims", "source_visual_integrity", "audio_clipping_check", "subtitle_alignment", "story_coherence"],
+      "properties": {
+        "dialogue_continuity": { "type": "boolean" },
+        "no_unapproved_claims": { "type": "boolean" },
+        "source_visual_integrity": { "type": "boolean" },
+        "audio_clipping_check": { "type": "boolean" },
+        "subtitle_alignment": { "type": "boolean" },
+        "story_coherence": { "type": "boolean" }
+      }
+    }
+  }
+}
