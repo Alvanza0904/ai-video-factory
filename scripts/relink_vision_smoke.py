@@ -3,7 +3,7 @@ import base64, json, os, urllib.request, urllib.error
 
 key = os.environ.get("RELINK_API_KEY", "")
 base = os.environ.get("RELINK_BASE_URL", "https://api.relink-gateway.biz.id/v1").rstrip("/")
-model = os.environ.get("RELINK_VISION_MODEL", "deepseek-flash")
+model = os.environ.get("RELINK_VISION_MODEL", "deepseek-v4.1-flash")
 if not key:
     raise SystemExit("RELINK_API_KEY missing")
 
