@@ -25,7 +25,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Type check
         run: npx tsc --noEmit
-      - name: Validate render worker syntax
-        run: python3 -m py_compile scripts/render_multi.py
+      - name: Validate Python render and AI worker syntax
+        run: python3 -m py_compile scripts/*.py
       - name: Build
         run: npm run build
