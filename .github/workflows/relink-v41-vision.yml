@@ -1,0 +1,23 @@
+name: ReLink V4.1 Flash Vision Verification
+
+on:
+  push:
+    paths:
+      - "scripts/relink_vision_smoke.py"
+      - ".github/workflows/relink-v41-vision.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  vision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the catalog-listed multimodal model
+        env:
+          RELINK_API_KEY: ${{ secrets.RELINK_API_KEY }}
+          RELINK_BASE_URL: https://api.relink-gateway.biz.id/v1
+          RELINK_VISION_MODEL: deepseek-v4.1-flash
+        run: python3 scripts/relink_vision_smoke.py
