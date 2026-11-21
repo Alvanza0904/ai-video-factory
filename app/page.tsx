@@ -53,7 +53,7 @@ export default function Home() {
       const res = await fetch(API + endpoint, { method:"POST", headers:{"Content-Type":"application/json", apikey:ANON}, body:JSON.stringify({email,password}) });
       const data = await res.json() as AuthResponse;
       if (!res.ok) throw new Error(data.msg || data.message || data.error_description || "Autentikasi gagal");
-      if (!data.access_token) { setNotice("Akun dibuat. Periksa email untuk konfirmasi, lalu masuk."); return; }
+      if (!data.access_token || !data.user) { setNotice("Akun dibuat. Periksa email untuk konfirmasi, lalu masuk."); return; }
       const s = {access_token:data.access_token,user:data.user};
       localStorage.setItem("avf-session", JSON.stringify(s)); setSession(s); setNotice("Berhasil masuk.");
     } catch(e) { setNotice((e as Error).message); }
