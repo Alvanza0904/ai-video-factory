@@ -2,6 +2,7 @@ export interface Env {
   MEDIA_BUCKET: R2Bucket;
   NEXT_PUBLIC_SUPABASE_URL: string;
   NEXT_PUBLIC_SUPABASE_ANON_KEY: string;
+  GH_DISPATCH_TOKEN?: string;
 }
 export async function userFrom(request: Request, env: Env) {
   const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
@@ -15,3 +16,18 @@ export async function supabase(request: Request, env: Env, path: string, init: R
   return fetch(env.NEXT_PUBLIC_SUPABASE_URL + path, { ...init, headers: { apikey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY, Authorization: token, ...(init.headers || {}) } });
 }
 export function json(data: unknown, status = 200) { return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }); }
+
+export async function signJob(env: Env, jobId: string, userId: string, expires: string): Promise<string> {
+  if (!env.GH_DISPATCH_TOKEN) throw new Error("GH_DISPATCH_TOKEN belum dikonfigurasi.");
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(env.GH_DISPATCH_TOKEN), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(jobId + "|" + userId + "|" + expires));
+  return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+export async function verifyJobSignature(env: Env, jobId: string, userId: string, expires: string, signature: string): Promise<boolean> {
+  if (!env.GH_DISPATCH_TOKEN || !/^\\d{10,}$/.test(expires) || Number(expires) < Math.floor(Date.now() / 1000) || Number(expires) > Math.floor(Date.now() / 1000) + 4 * 60 * 60) return false;
+  const expected = await signJob(env, jobId, userId, expires);
+  if (expected.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  return diff === 0;
+}
