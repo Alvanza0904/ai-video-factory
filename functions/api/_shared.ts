@@ -6,7 +6,7 @@ export interface Env {
   " GH_DISPATCH_TOKEN"?: string;
 }
 export async function userFrom(request: Request, env: Env) {
-  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  const token = request.headers.get("Authorization")?.replace(/^Bearer\\s+/i, "");
   if (!token) return null;
   const response = await fetch(env.NEXT_PUBLIC_SUPABASE_URL + "/auth/v1/user", { headers: { apikey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY, Authorization: "Bearer " + token } });
   if (!response.ok) return null;
@@ -18,7 +18,14 @@ export async function supabase(request: Request, env: Env, path: string, init: R
 }
 export function json(data: unknown, status = 200) { return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }); }
 
-export function dispatchToken(env: Env): string { return env.GH_DISPATCH_TOKEN || env[" GH_DISPATCH_TOKEN"] || ""; }
+/** Read the GitHub dispatch secret even if the dashboard accidentally saved whitespace around its name. */
+export function dispatchToken(env: Env): string {
+  const bindings = env as unknown as Record<string, unknown>;
+  for (const [name, value] of Object.entries(bindings)) {
+    if (name.trim() === "GH_DISPATCH_TOKEN" && typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
 export async function signJob(env: Env, jobId: string, userId: string, expires: string): Promise<string> {
   const secret = dispatchToken(env);
   if (!secret) throw new Error("GH_DISPATCH_TOKEN belum dikonfigurasi.");
@@ -27,7 +34,7 @@ export async function signJob(env: Env, jobId: string, userId: string, expires: 
   return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 export async function verifyJobSignature(env: Env, jobId: string, userId: string, expires: string, signature: string): Promise<boolean> {
-  if (!dispatchToken(env) || !/^\d{10,}$/.test(expires) || Number(expires) < Math.floor(Date.now() / 1000) || Number(expires) > Math.floor(Date.now() / 1000) + 4 * 60 * 60) return false;
+  if (!dispatchToken(env) || !/^\\d{10,}$/.test(expires) || Number(expires) < Math.floor(Date.now() / 1000) || Number(expires) > Math.floor(Date.now() / 1000) + 4 * 60 * 60) return false;
   const expected = await signJob(env, jobId, userId, expires);
   if (expected.length !== signature.length) return false;
   let diff = 0;
