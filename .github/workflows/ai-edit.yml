@@ -7,42 +7,10 @@ on:
         description: "Editing job UUID"
         required: true
         type: string
-      user_id:
-        description: "Owner UUID"
-        required: true
-        type: string
-      project_id:
-        description: "Project UUID"
-        required: true
-        type: string
-      expires:
-        description: "Signed URL expiry"
-        required: true
-        type: string
-      signature:
-        description: "Signed job token"
-        required: true
-        type: string
-      assets_json:
-        description: "Selected uploaded assets"
-        required: true
-        type: string
-      target_duration:
-        description: "Target duration"
-        required: true
-        type: choice
-        options: ["30", "45", "60"]
-      genre:
-        description: "Editing genre"
-        required: true
-        type: string
-      instructions:
-        description: "Additional user instructions"
-        required: false
-        type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ai-video-factory-job-${{ inputs.job_id }}
@@ -64,14 +32,9 @@ jobs:
       - name: Analyze footage, create edit plan, and render
         env:
           JOB_ID: ${{ inputs.job_id }}
-          USER_ID: ${{ inputs.user_id }}
-          PROJECT_ID: ${{ inputs.project_id }}
-          JOB_EXPIRES: ${{ inputs.expires }}
-          JOB_SIGNATURE: ${{ inputs.signature }}
-          ASSETS_JSON: ${{ inputs.assets_json }}
-          TARGET_DURATION: ${{ inputs.target_duration }}
-          SELECTED_GENRE: ${{ inputs.genre }}
-          EDIT_INSTRUCTIONS: ${{ inputs.instructions }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
           DOWNLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/download
           OUTPUT_UPLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/output
           RELINK_API_KEY: ${{ secrets.RELINK_API_KEY }}
@@ -82,12 +45,13 @@ jobs:
         if: failure()
         env:
           JOB_ID: ${{ inputs.job_id }}
-          USER_ID: ${{ inputs.user_id }}
-          JOB_EXPIRES: ${{ inputs.expires }}
-          JOB_SIGNATURE: ${{ inputs.signature }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
           FAILURE_REPORT_URL: https://ai-video-factory-43b.pages.dev/api/jobs/failure
         run: python3 scripts/report_failure.py
       - name: Upload preview artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ai-video-factory-${{ inputs.job_id }}
