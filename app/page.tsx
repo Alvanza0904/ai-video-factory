@@ -15,7 +15,7 @@ const genres = [
 ];
 type Project = { id: string; name: string; created_at: string };
 type Asset = { id: string; original_filename: string; upload_status: string; size_bytes: number };
-type AuthResponse = { access_token?: string; user?: { id: string; email?: string }; msg?: string; message?: string; error_description?: string };
+type AuthResponse = { access_token?: string; refresh_token?: string; expires_in?: number; user?: { id: string; email?: string }; msg?: string; message?: string; error_description?: string };
 type UploadInit = { key: string; uploadId: string; assetId: string; error?: string };
 type UploadPart = { etag: string; error?: string };
 type UploadComplete = { asset: Asset; error?: string };
@@ -28,7 +28,7 @@ export default function Home() {
   const [notice, setNotice] = useState("Masuk untuk membuat proyek dan mengunggah footage langsung dari HP.");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [session, setSession] = useState<{access_token:string; user:{id:string;email?:string}}|null>(null);
+  const [session, setSession] = useState<{access_token:string; refresh_token?:string; expires_at?:number; user:{id:string;email?:string}}|null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [projectName, setProjectName] = useState("Konten JAECOO Baru");
@@ -60,7 +60,7 @@ export default function Home() {
     let active = true;
     const poll = async () => {
       try {
-        const response = await fetch("/api/jobs/status?job_id=" + encodeURIComponent(jobId), { headers: { Authorization: "Bearer " + session.access_token } });
+        const response = await authorizedFetch("/api/jobs/status?job_id=" + encodeURIComponent(jobId), { headers: {} }, session.access_token);
         const data = await response.json() as JobStatus;
         if (!response.ok) throw new Error(data.error || "Gagal memeriksa status editing.");
         if (!active || !data.job) return;
@@ -82,15 +82,53 @@ export default function Home() {
       const data = await res.json() as AuthResponse;
       if (!res.ok) throw new Error(data.msg || data.message || data.error_description || "Autentikasi gagal");
       if (!data.access_token || !data.user) { setNotice("Akun dibuat. Periksa email untuk konfirmasi, lalu masuk."); return; }
-      const s = {access_token:data.access_token,user:data.user};
+      const s = {access_token:data.access_token,refresh_token:data.refresh_token,expires_at:Math.floor(Date.now()/1000)+(data.expires_in||3600),user:data.user};
       localStorage.setItem("avf-session", JSON.stringify(s)); setSession(s); setNotice("Berhasil masuk.");
     } catch(e) { setNotice((e as Error).message); }
     finally { setBusy(false); }
   }
 
+  async function refreshAccessToken(currentToken: string): Promise<string | null> {
+    const raw = localStorage.getItem("avf-session");
+    if (!raw) return null;
+    let stored: { refresh_token?: string; user: { id: string; email?: string } };
+    try { stored = JSON.parse(raw); } catch { return null; }
+    if (!stored.refresh_token) return null;
+    try {
+      const response = await fetch(API + "/auth/v1/token?grant_type=refresh_token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: ANON },
+        body: JSON.stringify({ refresh_token: stored.refresh_token })
+      });
+      const data = await response.json() as AuthResponse;
+      if (!response.ok || !data.access_token || !data.refresh_token) return null;
+      const next = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
+        user: data.user || stored.user
+      };
+      localStorage.setItem("avf-session", JSON.stringify(next));
+      setSession(next);
+      return next.access_token;
+    } catch { return null; }
+  }
+
+  async function authorizedFetch(url: string, init: RequestInit, token: string): Promise<Response> {
+    const send = (accessToken: string) => {
+      const headers = new Headers(init.headers || {});
+      headers.set("Authorization", "Bearer " + accessToken);
+      return fetch(url, { ...init, headers });
+    };
+    const response = await send(token);
+    if (response.status !== 401) return response;
+    const refreshed = await refreshAccessToken(token);
+    return refreshed ? send(refreshed) : response;
+  }
+
   async function loadProjects(token:string) {
     try {
-      const r=await fetch(API+"/rest/v1/video_projects?select=id,name,created_at&status=eq.active&order=created_at.desc",{headers:{apikey:ANON,Authorization:"Bearer "+token}});
+      const r=await authorizedFetch(API+"/rest/v1/video_projects?select=id,name,created_at&status=eq.active&order=created_at.desc",{headers:{apikey:ANON}},token);
       if(!r.ok) throw new Error("Gagal memuat proyek");
       const rows=await r.json() as Project[]; setProjects(rows); if(rows.length && !projectId) setProjectId(rows[0].id);
     } catch(e) { setNotice((e as Error).message); }
@@ -98,7 +136,7 @@ export default function Home() {
 
   async function loadAssets(token: string, selectedProjectId: string) {
     try {
-      const response = await fetch(API + "/rest/v1/media_assets?select=id,original_filename,upload_status,size_bytes&project_id=eq." + encodeURIComponent(selectedProjectId) + "&upload_status=eq.uploaded&asset_type=eq.video&order=created_at.asc", { headers: { apikey: ANON, Authorization: "Bearer " + token } });
+      const response = await authorizedFetch(API + "/rest/v1/media_assets?select=id,original_filename,upload_status,size_bytes&project_id=eq." + encodeURIComponent(selectedProjectId) + "&upload_status=eq.uploaded&asset_type=eq.video&order=created_at.asc", { headers: { apikey: ANON } }, token);
       if (!response.ok) throw new Error("Gagal memuat daftar footage.");
       setAssets(await response.json() as Asset[]);
     } catch (error) { setNotice((error as Error).message); }
@@ -108,7 +146,7 @@ export default function Home() {
     if (!session || !projectId || assets.length === 0) { setNotice("Pilih proyek dan unggah minimal satu video terlebih dahulu."); return; }
     setBusy(true); setOutputUrl(""); setJobStatus("queued");
     try {
-      const response = await fetch("/api/jobs/create", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ projectId, assetIds: assets.map(asset => asset.id), genre: selectedGenre, targetDuration: Number(duration), instructions }) });
+      const response = await authorizedFetch("/api/jobs/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId, assetIds: assets.map(asset => asset.id), genre: selectedGenre, targetDuration: Number(duration), instructions }) }, session.access_token);
       const data = await response.json() as JobResponse;
       if (!response.ok || !data.jobId) throw new Error(data.error || "Tidak dapat memulai AI editing.");
       setJobId(data.jobId); setJobStatus("analyzing"); setNotice("AI Director mulai membaca footage, dialog, dan adegan. Proses berjalan di cloud.");
@@ -120,8 +158,8 @@ export default function Home() {
     if(!session || !projectName.trim()) return;
     setBusy(true);
     try {
-      const r=await fetch(API+"/rest/v1/video_projects",{method:"POST",headers:{apikey:ANON,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify({name:projectName,brand:"JAECOO Palembang",user_id:session.user.id})});
-      const data=await r.json() as Project[]; if(!r.ok) throw new Error("Gagal membuat proyek");
+      const r=await authorizedFetch(API+"/rest/v1/video_projects",{method:"POST",headers:{apikey:ANON,"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify({name:projectName,brand:"JAECOO Palembang",user_id:session.user.id})},session.access_token);
+      const data=await r.json() as (Project[] & {message?:string;details?:string;hint?:string}); if(!r.ok) throw new Error(data.message || data.details || `Gagal membuat proyek (${r.status})`);
       setProjects([data[0],...projects]); setProjectId(data[0].id); setNotice("Proyek berhasil dibuat.");
     } catch(e) { setNotice((e as Error).message); }
     finally { setBusy(false); }
@@ -134,16 +172,16 @@ export default function Home() {
       for(let i=0;i<all.length;i++) {
         const file=all[i]; if(!file.type.startsWith("video/")) continue;
         setProgress("Menyiapkan "+file.name+" ("+(i+1)+"/"+all.length+")");
-        const start=await fetch("/api/upload/start",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({projectId,filename:file.name,size:file.size,contentType:file.type})});
+        const start=await authorizedFetch("/api/upload/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId,filename:file.name,size:file.size,contentType:file.type})},session.access_token);
         const init=await start.json() as UploadInit; if(!start.ok) throw new Error(init.error||"Gagal memulai upload");
         const partSize=8*1024*1024, parts: {partNumber:number;etag:string}[]=[];
         for(let offset=0,partNumber=1;offset<file.size;offset+=partSize,partNumber++) {
           setProgress("Upload "+file.name+" · "+Math.min(100,Math.round((offset/file.size)*100))+"%");
           const chunk=file.slice(offset,Math.min(file.size,offset+partSize));
-          const response=await fetch("/api/upload/part?key="+encodeURIComponent(init.key)+"&uploadId="+encodeURIComponent(init.uploadId)+"&partNumber="+partNumber,{method:"PUT",headers:{Authorization:"Bearer "+session.access_token},body:chunk});
+          const response=await authorizedFetch("/api/upload/part?key="+encodeURIComponent(init.key)+"&uploadId="+encodeURIComponent(init.uploadId)+"&partNumber="+partNumber,{method:"PUT",headers:{},body:chunk},session.access_token);
           const part=await response.json() as UploadPart; if(!response.ok) throw new Error(part.error||"Upload part gagal"); parts.push({partNumber,etag:part.etag});
         }
-        const done=await fetch("/api/upload/complete",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({key:init.key,uploadId:init.uploadId,parts,assetId:init.assetId})});
+        const done=await authorizedFetch("/api/upload/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:init.key,uploadId:init.uploadId,parts,assetId:init.assetId})},session.access_token);
         const result=await done.json() as UploadComplete; if(!done.ok) throw new Error(result.error||"Gagal menyelesaikan upload");
         setAssets(prev=>[...prev,result.asset]);
       }
