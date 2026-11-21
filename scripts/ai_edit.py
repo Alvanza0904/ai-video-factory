@@ -86,6 +86,10 @@ def transcribe(assets: list[dict]) -> dict[str, list[dict]]:
             "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", asset["path"],
             "-vn", "-ac", "1", "-ar", "16000", str(audio)
         ], check=True, capture_output=True)
+        audio_probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=index", "-of", "csv=p=0", asset["path"]], capture_output=True, text=True).stdout.strip()
+        if not audio_probe:
+            transcripts[asset["id"]] = []
+            continue
         segments, _ = model.transcribe(str(audio), vad_filter=True, beam_size=1)
         transcripts[asset["id"]] = [
             {"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()}
@@ -132,7 +136,7 @@ def ask_director(assets: list[dict], transcripts: dict, frame_map: list[dict]) -
 Create one complete editing blueprint. Return JSON only, matching this schema exactly:
 {json.dumps(schema, separators=(',', ':'))}
 
-Project ID: {os.environ['JOB_ID']}
+Project ID: {os.environ['PROJECT_ID']}
 Target duration: {target} seconds.
 Preferred genre: {genre} (auto means infer from footage).
 User instructions: {instructions or 'None'}.
