@@ -1,0 +1,22 @@
+name: ReLink Gateway Smoke Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relink-check:
+    name: Verify Re:Link connection
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test Re:Link API
+        env:
+          RELINK_API_KEY: ${{ secrets.RELINK_API_KEY }}
+          RELINK_BASE_URL: https://api.relink-gateway.biz.id/v1
+          RELINK_MODEL: deepseek-v4-pro
+        run: python3 scripts/relink_smoke.py
