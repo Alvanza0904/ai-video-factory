@@ -44,13 +44,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const expires = String(Math.floor(Date.now() / 1000) + 2 * 60 * 60);
   const signature = await signJob(env, jobId, user.id, expires);
+  const manifest = { jobId, userId: user.id, projectId: body.projectId, expires, signature, assets: selected.map(asset => ({ id: asset.id, key: asset.r2_key, filename: asset.original_filename })), targetDuration: body.targetDuration, genre: body.genre, instructions: (body.instructions || "").slice(0, 2000) };
+  await env.MEDIA_BUCKET.put(`private-jobs/${jobId}/manifest.json`, JSON.stringify(manifest), { httpMetadata: { contentType: "application/json" } });
   const dispatch = await fetch("https://api.github.com/repos/Alvanza0904/ai-video-factory/actions/workflows/ai-edit.yml/dispatches", {
     method: "POST",
     headers: { Authorization: "Bearer " + githubToken, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json", "User-Agent": "AI-Video-Factory" },
-    body: JSON.stringify({ ref: "main", inputs: { job_id: jobId, user_id: user.id, project_id: body.projectId, expires, signature, assets_json: JSON.stringify(selected.map(asset => ({ id: asset.id, key: asset.r2_key, filename: asset.original_filename }))), target_duration: String(body.targetDuration), genre: body.genre, instructions: (body.instructions || "").slice(0, 2000) } })
+    body: JSON.stringify({ ref: "main", inputs: { job_id: jobId } })
   });
   if (!dispatch.ok) {
     const message = dispatch.status === 404 ? "GitHub tidak menemukan workflow AI edit. Pastikan file workflow sudah terpasang." : dispatch.status === 401 || dispatch.status === 403 ? "Token GitHub tidak memiliki izin Actions: Read and write atau sudah kedaluwarsa." : "GitHub gagal menerima antrean editing (HTTP " + dispatch.status + ").";
+    await env.MEDIA_BUCKET.delete(`private-jobs/${jobId}/manifest.json`);
     await supabase(request, env, `/rest/v1/editing_jobs?id=eq.${jobId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "failed", error_message: message }) });
     return json({ error: message }, 502);
   }
