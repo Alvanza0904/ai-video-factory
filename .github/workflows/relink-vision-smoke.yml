@@ -1,10 +1,7 @@
 name: ReLink Vision Capability Check
 
 on:
-  push:
-    paths:
-      - "scripts/relink_vision_smoke.py"
-      - ".github/workflows/relink-vision-smoke.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
