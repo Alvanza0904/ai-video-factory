@@ -41,9 +41,9 @@ npm run dev
 
 ## GitHub Actions smoke test
 
-Open Actions → AI Video Factory - Cloud Render → Run workflow. Provide an HTTPS URL to a video file you own or have permission to process. The job creates a basic vertical MP4 and stores it as a short-lived workflow artifact.
+Open Actions → AI Video Factory - Multi-Clip Cloud Render → Run workflow. Provide up to 10 HTTPS source-video URLs (one per line). The job normalizes the clips to vertical 1080x1920, 30 fps, concatenates them, and stores the MP4 as a short-lived workflow artifact.
 
-This is only a rendering infrastructure smoke test. It is not the final AI editor and currently accepts one source video, not a multi-footage project.
+This is an infrastructure smoke test only. It does not yet perform AI scene understanding, creative clip selection, transitions, sound design, subtitles, or upload from the dashboard. Do not use it as the finished editor.
 
 ## Secrets and security
 
