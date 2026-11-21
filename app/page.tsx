@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Activity, ArrowUpRight, Clapperboard, Cloud, Film,
-  Gauge, Github, HardDrive, Layers3, Menu, Settings2,
-  Sparkles, UploadCloud, WandSparkles, X
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Activity, ArrowUpRight, Clapperboard, Cloud, Film, Github, HardDrive, Layers3, LogOut, Menu, Settings2, Sparkles, UploadCloud, WandSparkles, X, Play, FolderPlus, CheckCircle2 } from "lucide-react";
 
+const API = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const genres = [
   { name: "Cinematic", detail: "Automotive, product, travel", icon: "🎬" },
   { name: "Drama & Story", detail: "Dialog, emotion, storytelling", icon: "🎭" },
@@ -15,96 +13,121 @@ const genres = [
   { name: "Two Characters", detail: "One actor, multiple roles", icon: "🎭" },
   { name: "Review & Talking Head", detail: "Presenter, review, explanation", icon: "🎤" }
 ];
+type Project = { id: string; name: string; created_at: string };
+type Asset = { id: string; original_filename: string; upload_status: string; size_bytes: number };
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedGenre, setSelectedGenre] = useState("Auto-detect");
-  const [notice, setNotice] = useState("Fondasi dashboard sudah dibuat. Upload dan AI editing akan diaktifkan setelah koneksi storage dan Re:Link dikonfigurasi.");
+  const [selectedGenre, setSelectedGenre] = useState("auto");
+  const [notice, setNotice] = useState("Masuk untuk membuat proyek dan mengunggah footage langsung dari HP.");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [session, setSession] = useState<{access_token:string; user:{id:string;email:string}}|null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectId, setProjectId] = useState("");
+  const [projectName, setProjectName] = useState("Konten JAECOO Baru");
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [duration, setDuration] = useState("45");
+  const [instructions, setInstructions] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  return (
-    <main className="shell">
-      <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
-        <div className="brand">
-          <div className="brand-mark"><Clapperboard size={21}/></div>
-          <div><strong>VIDEO FACTORY</strong><span>UNIVERSAL EDITOR</span></div>
-          <button className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="Tutup menu"><X size={19}/></button>
-        </div>
-        <div className="workspace-label">WORKSPACE</div>
-        <nav>
-          <a className="nav-item active" href="#"><Layers3 size={18}/> Dashboard</a>
-          <a className="nav-item" href="#new-project"><UploadCloud size={18}/> Buat proyek</a>
-          <a className="nav-item" href="#genres"><Film size={18}/> Gaya editing</a>
-          <a className="nav-item" href="#infrastructure"><Settings2 size={18}/> Infrastruktur</a>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="profile"><div className="avatar">A</div><div><strong>Workspace Alvan</strong><span>Personal workspace</span></div></div>
-          <div className="version">AI VIDEO FACTORY · FOUNDATION 0.1</div>
-        </div>
-      </aside>
+  useEffect(() => {
+    const raw = localStorage.getItem("avf-session");
+    if (raw) { try { setSession(JSON.parse(raw)); } catch { localStorage.removeItem("avf-session"); } }
+  }, []);
 
-      {menuOpen && <button className="scrim" onClick={() => setMenuOpen(false)} aria-label="Tutup navigasi"/>}
+  useEffect(() => {
+    if (session) { loadProjects(session.access_token); }
+  }, [session]);
 
-      <section className="main">
-        <header className="topbar">
-          <button className="mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Buka menu"><Menu size={21}/></button>
-          <div className="breadcrumb">Workspace <span>/</span> Dashboard</div>
-          <div className="top-status"><span className="status-dot"/> Cloud-first workspace</div>
-        </header>
+  async function auth(mode: "signup"|"login") {
+    setBusy(true);
+    try {
+      const endpoint = mode === "signup" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password";
+      const res = await fetch(API + endpoint, { method:"POST", headers:{"Content-Type":"application/json", apikey:ANON}, body:JSON.stringify({email,password}) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.message || data.error_description || "Autentikasi gagal");
+      if (!data.access_token) { setNotice("Akun dibuat. Periksa email untuk konfirmasi, lalu masuk."); return; }
+      const s = {access_token:data.access_token,user:data.user};
+      localStorage.setItem("avf-session", JSON.stringify(s)); setSession(s); setNotice("Berhasil masuk.");
+    } catch(e) { setNotice((e as Error).message); }
+    finally { setBusy(false); }
+  }
 
-        <div className="content">
-          <section className="welcome">
-            <div>
-              <div className="eyebrow"><Sparkles size={14}/> YOUR CREATIVE WORKSPACE</div>
-              <h1>Ide jadi video.<br/><em>Tanpa edit manual.</em></h1>
-              <p>Upload footage dari HP. AI akan memahami isi konten, menyusun cerita, memilih gaya editing, lalu menyiapkan video final.</p>
-            </div>
-            <div className="welcome-art"><div className="art-ring ring-one"/><div className="art-ring ring-two"/><div className="art-core"><Clapperboard size={42}/></div><span className="art-tag">AI / EDIT / EXPORT</span></div>
-          </section>
+  async function loadProjects(token:string) {
+    try {
+      const r=await fetch(API+"/rest/v1/video_projects?select=id,name,created_at&status=eq.active&order=created_at.desc",{headers:{apikey:ANON,Authorization:"Bearer "+token}});
+      if(!r.ok) throw new Error("Gagal memuat proyek");
+      const rows=await r.json(); setProjects(rows); if(rows.length && !projectId) setProjectId(rows[0].id);
+    } catch(e) { setNotice((e as Error).message); }
+  }
 
-          <div className="notice"><Activity size={17}/><span>{notice}</span></div>
+  async function createProject() {
+    if(!session || !projectName.trim()) return;
+    setBusy(true);
+    try {
+      const r=await fetch(API+"/rest/v1/video_projects",{method:"POST",headers:{apikey:ANON,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify({name:projectName,brand:"JAECOO Palembang",user_id:session.user.id})});
+      const data=await r.json(); if(!r.ok) throw new Error(data.message||"Gagal membuat proyek");
+      setProjects([data[0],...projects]); setProjectId(data[0].id); setNotice("Proyek berhasil dibuat.");
+    } catch(e) { setNotice((e as Error).message); }
+    finally { setBusy(false); }
+  }
 
-          <section className="section" id="new-project">
-            <div className="section-heading"><div><div className="eyebrow">START CREATING</div><h2>Proyek baru</h2></div><span className="muted small">Output target · 9:16 · 1080p · 30–60 detik</span></div>
-            <div className="project-panel">
-              <div className="upload-visual"><UploadCloud size={30}/><span>UPLOAD AREA</span></div>
-              <div className="project-copy">
-                <h3>Siapkan satu konten dari banyak footage</h3>
-                <p>Unggah beberapa klip dalam satu proyek. Sistem nantinya menganalisis seluruh klip sebagai satu cerita, bukan mengeditnya satu per satu.</p>
-                <div className="project-actions">
-                  <button className="primary-button" disabled title="Menunggu konfigurasi Supabase Storage / Cloudflare R2"><UploadCloud size={17}/> Upload footage <span className="soon">SEGERA</span></button>
-                  <span className="muted tiny">Upload belum diaktifkan — storage belum terhubung.</span>
-                </div>
-              </div>
-            </div>
-          </section>
+  async function uploadFiles(files:FileList|null) {
+    if(!session || !projectId || !files?.length) { setNotice("Masuk dan pilih proyek terlebih dahulu."); return; }
+    setBusy(true); const all=Array.from(files);
+    try {
+      for(let i=0;i<all.length;i++) {
+        const file=all[i]; if(!file.type.startsWith("video/")) continue;
+        setProgress("Menyiapkan "+file.name+" ("+(i+1)+"/"+all.length+")");
+        const start=await fetch("/api/upload/start",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({projectId,filename:file.name,size:file.size,contentType:file.type})});
+        const init=await start.json(); if(!start.ok) throw new Error(init.error||"Gagal memulai upload");
+        const partSize=8*1024*1024, parts=[];
+        for(let offset=0,partNumber=1;offset<file.size;offset+=partSize,partNumber++) {
+          setProgress("Upload "+file.name+" · "+Math.min(100,Math.round((offset/file.size)*100))+"%");
+          const chunk=file.slice(offset,Math.min(file.size,offset+partSize));
+          const response=await fetch("/api/upload/part?key="+encodeURIComponent(init.key)+"&uploadId="+encodeURIComponent(init.uploadId)+"&partNumber="+partNumber,{method:"PUT",headers:{Authorization:"Bearer "+session.access_token},body:chunk});
+          const part=await response.json(); if(!response.ok) throw new Error(part.error||"Upload part gagal"); parts.push({partNumber,etag:part.etag});
+        }
+        const done=await fetch("/api/upload/complete",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({key:init.key,uploadId:init.uploadId,parts,assetId:init.assetId})});
+        const result=await done.json(); if(!done.ok) throw new Error(result.error||"Gagal menyelesaikan upload");
+        setAssets(prev=>[...prev,result.asset]);
+      }
+      setNotice(all.length+" file selesai diunggah ke Cloudflare R2."); setProgress("");
+    } catch(e) { setNotice((e as Error).message); setProgress(""); }
+    finally { setBusy(false); if(fileRef.current) fileRef.current.value=""; }
+  }
 
-          <section className="section" id="genres">
-            <div className="section-heading"><div><div className="eyebrow">UNIVERSAL AI DIRECTOR</div><h2>Semua genre, satu editor</h2></div><span className="muted small">Genre otomatis menjadi pilihan utama</span></div>
-            <div className="genre-grid">
-              {genres.map((genre) => <button key={genre.name} className={`genre-card ${selectedGenre === genre.name ? "genre-selected" : ""}`} onClick={() => {setSelectedGenre(genre.name); setNotice(`Preferensi genre dipilih: ${genre.name}. Deteksi otomatis tetap menjadi default saat pipeline AI aktif.`);}}>
-                <span className="genre-icon">{genre.icon}</span><strong>{genre.name}</strong><span>{genre.detail}</span>
-              </button>)}
-            </div>
-            <div className="genre-footer"><span>Preferensi saat ini: <strong>{selectedGenre}</strong></span><button className="text-button" onClick={() => {setSelectedGenre("Auto-detect"); setNotice("Genre dikembalikan ke Auto-detect.");}}>Kembali ke Auto-detect <ArrowUpRight size={14}/></button></div>
-          </section>
+  function logout() { localStorage.removeItem("avf-session"); setSession(null); setProjects([]); setAssets([]); setNotice("Kamu sudah keluar."); }
 
-          <section className="section" id="infrastructure">
-            <div className="section-heading"><div><div className="eyebrow">CLOUD PIPELINE</div><h2>Infrastruktur</h2></div><span className="muted small">Status konfigurasi awal</span></div>
-            <div className="infra-grid">
-              <Infra icon={<Github size={18}/>} title="GitHub Actions" state="Workflow belum diuji" detail="Cloud render worker"/>
-              <Infra icon={<WandSparkles size={18}/>} title="Re:Link Gateway" state="Belum dikonfigurasi" detail="AI director & analysis"/>
-              <Infra icon={<HardDrive size={18}/>} title="Storage" state="Belum dikonfigurasi" detail="Supabase / Cloudflare R2"/>
-              <Infra icon={<Cloud size={18}/>} title="Vercel" state="Belum dideploy" detail="Dashboard hosting"/>
-            </div>
-          </section>
-
-          <footer><span>AI VIDEO FACTORY</span><span>Built for mobile-first creation · <a href="https://github.com/Alvanza0904/ai-video-factory" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={12}/></a></span></footer>
-        </div>
-      </section>
-    </main>
-  );
+  return <main className="shell">
+    <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
+      <div className="brand"><div className="brand-mark"><Clapperboard size={21}/></div><div><strong>VIDEO FACTORY</strong><span>UNIVERSAL EDITOR</span></div><button className="mobile-close" onClick={()=>setMenuOpen(false)} aria-label="Tutup menu"><X size={19}/></button></div>
+      <div className="workspace-label">WORKSPACE</div><nav>
+        <a className="nav-item active" href="#"><Layers3 size={18}/> Dashboard</a><a className="nav-item" href="#new-project"><UploadCloud size={18}/> Buat proyek</a><a className="nav-item" href="#genres"><Film size={18}/> Gaya editing</a><a className="nav-item" href="#infrastructure"><Settings2 size={18}/> Infrastruktur</a>
+      </nav>
+      <div className="sidebar-bottom"><div className="profile"><div className="avatar">A</div><div><strong>{session?.user.email||"Workspace Alvan"}</strong><span>{session?"Authenticated":"Mobile workspace"}</span></div></div><div className="version">AI VIDEO FACTORY · 0.2</div></div>
+    </aside>
+    {menuOpen&&<button className="scrim" onClick={()=>setMenuOpen(false)} aria-label="Tutup navigasi"/>}
+    <section className="main"><header className="topbar"><button className="mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu"><Menu size={21}/></button><div className="breadcrumb">Workspace <span>/</span> Dashboard</div><div className="top-status"><span className="status-dot"/>{session?"Signed in":"Cloud-first workspace"}</div></header>
+      <div className="content">
+        <section className="welcome"><div><div className="eyebrow"><Sparkles size={14}/> YOUR CREATIVE WORKSPACE</div><h1>Ide jadi video.<br/><em>Tanpa edit manual.</em></h1><p>Upload footage dari HP. AI akan memahami isi konten, menyusun cerita, memilih gaya editing, lalu menyiapkan video final.</p></div><div className="welcome-art"><div className="art-ring ring-one"/><div className="art-ring ring-two"/><div className="art-core"><Clapperboard size={42}/></div><span className="art-tag">AI / EDIT / EXPORT</span></div></section>
+        <div className="notice"><Activity size={17}/><span>{notice}</span></div>
+        {!session ? <section className="section auth-panel"><div className="section-heading"><div><div className="eyebrow">SECURE WORKSPACE</div><h2>Masuk ke Video Factory</h2></div></div><div className="auth-fields"><input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/><input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)}/><button className="primary-button" disabled={busy||!email||password.length<6} onClick={()=>auth("login")}>Masuk</button><button className="secondary-button" disabled={busy||!email||password.length<6} onClick={()=>auth("signup")}>Buat akun</button></div><p className="muted tiny">Akun tersimpan di Supabase Auth. Gunakan email dan password pribadi.</p></section> :
+        <section className="section" id="new-project">
+          <div className="section-heading"><div><div className="eyebrow">START CREATING</div><h2>Proyek & footage</h2></div><button className="text-button" onClick={logout}><LogOut size={14}/> Keluar</button></div>
+          <div className="project-panel"><div className="project-copy"><h3>Kelola proyek konten</h3><div className="project-controls"><select value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Pilih proyek</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><input value={projectName} onChange={e=>setProjectName(e.target.value)} placeholder="Nama proyek baru"/><button className="secondary-button" onClick={createProject} disabled={busy}><FolderPlus size={16}/> Buat proyek</button></div></div></div>
+          <div className="upload-card"><div className="upload-visual"><UploadCloud size={30}/><span>MULTI-CLIP UPLOAD</span></div><div className="project-copy"><h3>Upload banyak footage sekaligus</h3><p>Pilih beberapa video dari galeri. File dipecah menjadi beberapa bagian agar lebih stabil saat upload dari HP dan disimpan privat di Cloudflare R2.</p><input ref={fileRef} type="file" accept="video/*" multiple onChange={e=>uploadFiles(e.target.files)} disabled={busy||!projectId}/>{progress&&<div className="upload-progress">{progress}</div>}<div className="project-actions"><button className="primary-button" onClick={()=>fileRef.current?.click()} disabled={busy||!projectId}><UploadCloud size={17}/> Pilih video dari HP</button><span className="muted tiny">{busy?"Sedang memproses…":projectId?"Pilih beberapa klip sekaligus":"Pilih atau buat proyek dahulu"}</span></div></div></div>
+          {assets.length>0&&<div className="asset-list"><h3><CheckCircle2 size={17}/> Upload selesai</h3>{assets.map(a=><div key={a.id}>{a.original_filename} · {Math.round(a.size_bytes/1048576)} MB · {a.upload_status}</div>)}</div>}
+          <div className="editor-settings"><h3><WandSparkles size={17}/> Pengaturan AI Director</h3><label>Gaya editing</label><select value={selectedGenre} onChange={e=>setSelectedGenre(e.target.value)}><option value="auto">Deteksi otomatis</option><option value="cinematic">Cinematic</option><option value="drama">Drama & storytelling</option><option value="pov">POV</option><option value="comedy">Comedy & entertainment</option><option value="two_character">Satu aktor, dua karakter</option><option value="review">Review & talking head</option><option value="mixed">Mixed</option></select><label>Durasi target</label><select value={duration} onChange={e=>setDuration(e.target.value)}><option value="30">30 detik</option><option value="45">45 detik</option><option value="60">60 detik</option></select><label>Instruksi tambahan (opsional)</label><textarea value={instructions} onChange={e=>setInstructions(e.target.value)} placeholder="Contoh: fokus pada detail eksterior JAECOO J5, pertahankan dialog asli, tempo cepat…"/><button className="primary-button" disabled title="Antrean render AI sedang dalam tahap integrasi"><Play size={16}/> Mulai AI Editing <span className="soon">TAHAP BERIKUTNYA</span></button><p className="muted tiny">Upload R2 aktif setelah binding Cloudflare terpasang. Pipeline AI dan render belum aktif.</p></div>
+        </section>}
+        <section className="section" id="genres"><div className="section-heading"><div><div className="eyebrow">UNIVERSAL AI DIRECTOR</div><h2>Semua genre, satu editor</h2></div><span className="muted small">Genre otomatis menjadi pilihan utama</span></div><div className="genre-grid">{genres.map(g=><button key={g.name} className={`genre-card ${selectedGenre===g.name.toLowerCase()?"genre-selected":""}`} onClick={()=>setSelectedGenre(g.name.toLowerCase())}><span className="genre-icon">{g.icon}</span><strong>{g.name}</strong><span>{g.detail}</span></button>)}</div><div className="genre-footer"><span>Preferensi: <strong>{selectedGenre==="auto"?"Auto-detect":selectedGenre}</strong></span><button className="text-button" onClick={()=>setSelectedGenre("auto")}>Kembali ke Auto-detect <ArrowUpRight size={14}/></button></div></section>
+        <section className="section" id="infrastructure"><div className="section-heading"><div><div className="eyebrow">CLOUD PIPELINE</div><h2>Infrastruktur</h2></div><span className="muted small">Komponen terhubung / proses</span></div><div className="infra-grid"><Infra icon={<Github size={18}/>} title="GitHub Actions" state="Workflow smoke test tersedia" detail="Cloud render worker"/><Infra icon={<WandSparkles size={18}/>} title="Re:Link Gateway" state="Secret perlu diverifikasi" detail="AI director & analysis"/><Infra icon={<HardDrive size={18}/>} title="Cloudflare R2" state="Bucket dibuat · binding perlu deploy" detail="Media storage"/><Infra icon={<Cloud size={18}/>} title="Supabase" state="Database & Auth aktif" detail="Auth, metadata, jobs"/></div></section>
+        <footer><span>AI VIDEO FACTORY</span><span>Built for mobile-first creation · <a href="https://github.com/Alvanza0904/ai-video-factory" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={12}/></a></span></footer>
+      </div>
+    </section>
+  </main>;
 }
-
-function Infra({ icon, title, state, detail }: { icon: React.ReactNode; title: string; state: string; detail: string }) {
-  return <div className="infra-card"><div className="infra-icon">{icon}</div><div className="infra-info"><strong>{title}</strong><span>{detail}</span><small>{state}</small></div><Gauge className="infra-gauge" size={17}/></div>;
-}
+function Infra({icon,title,state,detail}:{icon:React.ReactNode;title:string;state:string;detail:string}) { return <div className="infra-card"><div className="infra-icon">{icon}</div><div className="infra-info"><strong>{title}</strong><span>{detail}</span><small>{state}</small></div></div>; }
