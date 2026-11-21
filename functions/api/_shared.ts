@@ -6,9 +6,13 @@ export interface Env {
   " GH_DISPATCH_TOKEN"?: string;
 }
 export async function userFrom(request: Request, env: Env) {
-  const token = request.headers.get("Authorization")?.replace(/^Bearer\\s+/i, "");
+  const authorization = request.headers.get("Authorization") || "";
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  const token = match?.[1]?.trim();
   if (!token) return null;
-  const response = await fetch(env.NEXT_PUBLIC_SUPABASE_URL + "/auth/v1/user", { headers: { apikey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY, Authorization: "Bearer " + token } });
+  const response = await fetch(env.NEXT_PUBLIC_SUPABASE_URL + "/auth/v1/user", {
+    headers: { apikey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY, Authorization: "Bearer " + token }
+  });
   if (!response.ok) return null;
   return await response.json() as { id: string; email?: string };
 }
@@ -34,7 +38,7 @@ export async function signJob(env: Env, jobId: string, userId: string, expires: 
   return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 export async function verifyJobSignature(env: Env, jobId: string, userId: string, expires: string, signature: string): Promise<boolean> {
-  if (!dispatchToken(env) || !/^\\d{10,}$/.test(expires) || Number(expires) < Math.floor(Date.now() / 1000) || Number(expires) > Math.floor(Date.now() / 1000) + 4 * 60 * 60) return false;
+  if (!dispatchToken(env) || !/^\d{10,}$/.test(expires) || Number(expires) < Math.floor(Date.now() / 1000) || Number(expires) > Math.floor(Date.now() / 1000) + 4 * 60 * 60) return false;
   const expected = await signJob(env, jobId, userId, expires);
   if (expected.length !== signature.length) return false;
   let diff = 0;
