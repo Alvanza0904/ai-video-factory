@@ -15,6 +15,10 @@ const genres = [
 ];
 type Project = { id: string; name: string; created_at: string };
 type Asset = { id: string; original_filename: string; upload_status: string; size_bytes: number };
+type AuthResponse = { access_token?: string; user?: { id: string; email?: string }; msg?: string; message?: string; error_description?: string };
+type UploadInit = { key: string; uploadId: string; assetId: string; error?: string };
+type UploadPart = { etag: string; error?: string };
+type UploadComplete = { asset: Asset; error?: string };
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -47,7 +51,7 @@ export default function Home() {
     try {
       const endpoint = mode === "signup" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password";
       const res = await fetch(API + endpoint, { method:"POST", headers:{"Content-Type":"application/json", apikey:ANON}, body:JSON.stringify({email,password}) });
-      const data = await res.json() as any;
+      const data = await res.json() as AuthResponse;
       if (!res.ok) throw new Error(data.msg || data.message || data.error_description || "Autentikasi gagal");
       if (!data.access_token) { setNotice("Akun dibuat. Periksa email untuk konfirmasi, lalu masuk."); return; }
       const s = {access_token:data.access_token,user:data.user};
@@ -60,7 +64,7 @@ export default function Home() {
     try {
       const r=await fetch(API+"/rest/v1/video_projects?select=id,name,created_at&status=eq.active&order=created_at.desc",{headers:{apikey:ANON,Authorization:"Bearer "+token}});
       if(!r.ok) throw new Error("Gagal memuat proyek");
-      const rows=await r.json() as any; setProjects(rows); if(rows.length && !projectId) setProjectId(rows[0].id);
+      const rows=await r.json() as Project[]; setProjects(rows); if(rows.length && !projectId) setProjectId(rows[0].id);
     } catch(e) { setNotice((e as Error).message); }
   }
 
@@ -69,7 +73,7 @@ export default function Home() {
     setBusy(true);
     try {
       const r=await fetch(API+"/rest/v1/video_projects",{method:"POST",headers:{apikey:ANON,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify({name:projectName,brand:"JAECOO Palembang",user_id:session.user.id})});
-      const data=await r.json() as any; if(!r.ok) throw new Error(data.message||"Gagal membuat proyek");
+      const data=await r.json() as Project[]; if(!r.ok) throw new Error("Gagal membuat proyek");
       setProjects([data[0],...projects]); setProjectId(data[0].id); setNotice("Proyek berhasil dibuat.");
     } catch(e) { setNotice((e as Error).message); }
     finally { setBusy(false); }
@@ -83,16 +87,16 @@ export default function Home() {
         const file=all[i]; if(!file.type.startsWith("video/")) continue;
         setProgress("Menyiapkan "+file.name+" ("+(i+1)+"/"+all.length+")");
         const start=await fetch("/api/upload/start",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({projectId,filename:file.name,size:file.size,contentType:file.type})});
-        const init=await start.json() as any; if(!start.ok) throw new Error(init.error||"Gagal memulai upload");
-        const partSize=8*1024*1024, parts=[];
+        const init=await start.json() as UploadInit; if(!start.ok) throw new Error(init.error||"Gagal memulai upload");
+        const partSize=8*1024*1024, parts: {partNumber:number;etag:string}[]=[];
         for(let offset=0,partNumber=1;offset<file.size;offset+=partSize,partNumber++) {
           setProgress("Upload "+file.name+" · "+Math.min(100,Math.round((offset/file.size)*100))+"%");
           const chunk=file.slice(offset,Math.min(file.size,offset+partSize));
           const response=await fetch("/api/upload/part?key="+encodeURIComponent(init.key)+"&uploadId="+encodeURIComponent(init.uploadId)+"&partNumber="+partNumber,{method:"PUT",headers:{Authorization:"Bearer "+session.access_token},body:chunk});
-          const part=await response.json() as any; if(!response.ok) throw new Error(part.error||"Upload part gagal"); parts.push({partNumber,etag:part.etag});
+          const part=await response.json() as UploadPart; if(!response.ok) throw new Error(part.error||"Upload part gagal"); parts.push({partNumber,etag:part.etag});
         }
         const done=await fetch("/api/upload/complete",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({key:init.key,uploadId:init.uploadId,parts,assetId:init.assetId})});
-        const result=await done.json() as any; if(!done.ok) throw new Error(result.error||"Gagal menyelesaikan upload");
+        const result=await done.json() as UploadComplete; if(!done.ok) throw new Error(result.error||"Gagal menyelesaikan upload");
         setAssets(prev=>[...prev,result.asset]);
       }
       setNotice(all.length+" file selesai diunggah ke Cloudflare R2."); setProgress("");
