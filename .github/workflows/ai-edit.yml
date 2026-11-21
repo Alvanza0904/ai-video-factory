@@ -76,7 +76,7 @@ jobs:
           OUTPUT_UPLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/output
           RELINK_API_KEY: ${{ secrets.RELINK_API_KEY }}
           RELINK_BASE_URL: https://api.relink-gateway.biz.id/v1
-          RELINK_VISION_MODEL: deepseek-flash
+          RELINK_VISION_MODEL: deepseek-v4.1-flash
         run: python3 scripts/ai_edit.py
       - name: Upload preview artifact
         uses: actions/upload-artifact@v4
