@@ -10,6 +10,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!result.ok || !rows.length) return json({ error: "Job tidak ditemukan." }, 404);
   const job = rows[0];
   if (job.status !== "completed" && job.status !== "failed") {
+    const failureKey = `users/${user.id}/renders/${jobId}.failure.json`;
+    const failureObject = await env.MEDIA_BUCKET.get(failureKey);
+    if (failureObject) {
+      const failure = await failureObject.json() as { message?: string };
+      const message = (failure.message || "AI editing gagal.").slice(0, 500);
+      const failed = await supabase(request, env, `/rest/v1/editing_jobs?id=eq.${jobId}&user_id=eq.${user.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "failed", progress: 0, error_message: message }) });
+      if (failed.ok) { job.status = "failed"; job.error_message = message; }
+    }
+  }
+  if (job.status !== "completed" && job.status !== "failed") {
     const key = `users/${user.id}/renders/${jobId}.mp4`;
     const object = await env.MEDIA_BUCKET.head(key);
     if (object) {
