@@ -1,0 +1,82 @@
+name: AI Video Factory - AI Director and Render
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Editing job UUID"
+        required: true
+        type: string
+      user_id:
+        description: "Owner UUID"
+        required: true
+        type: string
+      expires:
+        description: "Signed URL expiry"
+        required: true
+        type: string
+      signature:
+        description: "Signed job token"
+        required: true
+        type: string
+      assets_json:
+        description: "Selected uploaded assets"
+        required: true
+        type: string
+      target_duration:
+        description: "Target duration"
+        required: true
+        type: choice
+        options: ["30", "45", "60"]
+      genre:
+        description: "Editing genre"
+        required: true
+        type: string
+      instructions:
+        description: "Additional user instructions"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-video-factory-job-${{ inputs.job_id }}
+  cancel-in-progress: false
+
+jobs:
+  ai-edit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install faster-whisper jsonschema
+      - name: Analyze footage, create edit plan, and render
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          USER_ID: ${{ inputs.user_id }}
+          JOB_EXPIRES: ${{ inputs.expires }}
+          JOB_SIGNATURE: ${{ inputs.signature }}
+          ASSETS_JSON: ${{ inputs.assets_json }}
+          TARGET_DURATION: ${{ inputs.target_duration }}
+          SELECTED_GENRE: ${{ inputs.genre }}
+          EDIT_INSTRUCTIONS: ${{ inputs.instructions }}
+          DOWNLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/download
+          OUTPUT_UPLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/output
+          RELINK_API_KEY: ${{ secrets.RELINK_API_KEY }}
+          RELINK_BASE_URL: https://api.relink-gateway.biz.id/v1
+          RELINK_VISION_MODEL: deepseek-flash
+        run: python3 scripts/ai_edit.py
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-video-factory-${{ inputs.job_id }}
+          path: ai-video-factory-final.mp4
+          if-no-files-found: error
+          retention-days: 3
