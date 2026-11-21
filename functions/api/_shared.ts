@@ -22,12 +22,12 @@ export async function supabase(request: Request, env: Env, path: string, init: R
 }
 export function json(data: unknown, status = 200) { return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }); }
 
-/** Read the GitHub dispatch secret even if the dashboard accidentally saved whitespace around its name. */
+/** Read the Pages secret by its exact binding name; retain compatibility with the old whitespace-prefixed name. */
 export function dispatchToken(env: Env): string {
-  const bindings = env as unknown as Record<string, unknown>;
-  for (const [name, value] of Object.entries(bindings)) {
-    if (name.trim() === "GH_DISPATCH_TOKEN" && typeof value === "string" && value.trim()) return value.trim();
-  }
+  const direct = env.GH_DISPATCH_TOKEN;
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  const legacy = env[" GH_DISPATCH_TOKEN"];
+  if (typeof legacy === "string" && legacy.trim()) return legacy.trim();
   return "";
 }
 export async function signJob(env: Env, jobId: string, userId: string, expires: string): Promise<string> {
