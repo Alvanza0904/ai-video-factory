@@ -91,8 +91,9 @@ export default function Home() {
   async function refreshAccessToken(currentToken: string): Promise<string | null> {
     const raw = localStorage.getItem("avf-session");
     if (!raw) return null;
-    let stored: { refresh_token?: string; user: { id: string; email?: string } };
+    let stored: { access_token?: string; refresh_token?: string; user: { id: string; email?: string } };
     try { stored = JSON.parse(raw); } catch { return null; }
+    if (stored.access_token && stored.access_token !== currentToken) return stored.access_token;
     if (!stored.refresh_token) return null;
     try {
       const response = await fetch(API + "/auth/v1/token?grant_type=refresh_token", {
