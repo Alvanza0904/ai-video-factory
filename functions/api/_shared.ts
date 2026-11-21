@@ -3,6 +3,7 @@ export interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string;
   NEXT_PUBLIC_SUPABASE_ANON_KEY: string;
   GH_DISPATCH_TOKEN?: string;
+  " GH_DISPATCH_TOKEN"?: string;
 }
 export async function userFrom(request: Request, env: Env) {
   const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
@@ -17,14 +18,16 @@ export async function supabase(request: Request, env: Env, path: string, init: R
 }
 export function json(data: unknown, status = 200) { return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }); }
 
+export function dispatchToken(env: Env): string { return env.GH_DISPATCH_TOKEN || env[" GH_DISPATCH_TOKEN"] || ""; }
 export async function signJob(env: Env, jobId: string, userId: string, expires: string): Promise<string> {
-  if (!env.GH_DISPATCH_TOKEN) throw new Error("GH_DISPATCH_TOKEN belum dikonfigurasi.");
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(env.GH_DISPATCH_TOKEN), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const secret = dispatchToken(env);
+  if (!secret) throw new Error("GH_DISPATCH_TOKEN belum dikonfigurasi.");
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(jobId + "|" + userId + "|" + expires));
   return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 export async function verifyJobSignature(env: Env, jobId: string, userId: string, expires: string, signature: string): Promise<boolean> {
-  if (!env.GH_DISPATCH_TOKEN || !/^\\d{10,}$/.test(expires) || Number(expires) < Math.floor(Date.now() / 1000) || Number(expires) > Math.floor(Date.now() / 1000) + 4 * 60 * 60) return false;
+  if (!dispatchToken(env) || !/^\\d{10,}$/.test(expires) || Number(expires) < Math.floor(Date.now() / 1000) || Number(expires) > Math.floor(Date.now() / 1000) + 4 * 60 * 60) return false;
   const expected = await signJob(env, jobId, userId, expires);
   if (expected.length !== signature.length) return false;
   let diff = 0;
