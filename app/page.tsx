@@ -45,6 +45,8 @@ export default function Home() {
   useEffect(() => {
     const raw = localStorage.getItem("avf-session");
     if (raw) { try { setSession(JSON.parse(raw)); } catch { localStorage.removeItem("avf-session"); } }
+    const savedJobId = localStorage.getItem("avf-active-job");
+    if (savedJobId) { setJobId(savedJobId); setJobStatus("restoring"); setNotice("Memulihkan status AI Editing terakhir…"); }
   }, []);
 
   useEffect(() => {
@@ -150,7 +152,7 @@ export default function Home() {
       const response = await authorizedFetch("/api/jobs/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId, assetIds: assets.map(asset => asset.id), genre: selectedGenre, targetDuration: Number(duration), instructions }) }, session.access_token);
       const data = await response.json() as JobResponse;
       if (!response.ok || !data.jobId) throw new Error(data.error || "Tidak dapat memulai AI editing.");
-      setJobId(data.jobId); setJobStatus("analyzing"); setNotice("AI Director mulai membaca footage, dialog, dan adegan. Proses berjalan di cloud.");
+      localStorage.setItem("avf-active-job", data.jobId); setJobId(data.jobId); setJobStatus("analyzing"); setNotice("AI Director mulai membaca footage, dialog, dan adegan. Proses berjalan di cloud. Kamu boleh meninggalkan halaman; status akan dipulihkan saat kembali.");
     } catch (error) { setJobStatus("failed"); setNotice((error as Error).message); }
     finally { setBusy(false); }
   }
