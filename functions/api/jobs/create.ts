@@ -46,7 +46,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const dispatch = await fetch("https://api.github.com/repos/Alvanza0904/ai-video-factory/actions/workflows/ai-edit.yml/dispatches", {
     method: "POST",
     headers: { Authorization: "Bearer " + env.GH_DISPATCH_TOKEN, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json", "User-Agent": "AI-Video-Factory" },
-    body: JSON.stringify({ ref: "main", inputs: { job_id: jobId, user_id: user.id, expires, signature, assets_json: JSON.stringify(selected.map(asset => ({ id: asset.id, key: asset.r2_key, filename: asset.original_filename }))), target_duration: String(body.targetDuration), genre: body.genre, instructions: (body.instructions || "").slice(0, 2000) } })
+    body: JSON.stringify({ ref: "main", inputs: { job_id: jobId, user_id: user.id, project_id: body.projectId, expires, signature, assets_json: JSON.stringify(selected.map(asset => ({ id: asset.id, key: asset.r2_key, filename: asset.original_filename }))), target_duration: String(body.targetDuration), genre: body.genre, instructions: (body.instructions || "").slice(0, 2000) } })
   });
   if (!dispatch.ok) {
     const message = dispatch.status === 404 ? "GitHub tidak menemukan workflow AI edit. Pastikan file workflow sudah terpasang." : dispatch.status === 401 || dispatch.status === 403 ? "Token GitHub tidak memiliki izin Actions: Read and write atau sudah kedaluwarsa." : "GitHub gagal menerima antrean editing (HTTP " + dispatch.status + ").";
