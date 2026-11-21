@@ -1,4 +1,4 @@
-import { Env, json, signJob, supabase, userFrom } from "../_shared";
+import { Env, dispatchToken, json, signJob, supabase, userFrom } from "../_shared";
 
 type Asset = { id: string; r2_key: string; original_filename: string; size_bytes: number; content_type: string };
 const allowedGenres = ["auto", "cinematic", "drama", "pov", "comedy", "two_character", "review", "mixed", "other"];
@@ -6,7 +6,8 @@ const allowedGenres = ["auto", "cinematic", "drama", "pov", "comedy", "two_chara
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const user = await userFrom(request, env);
   if (!user) return json({ error: "Sesi tidak valid. Silakan masuk kembali." }, 401);
-  if (!env.GH_DISPATCH_TOKEN) return json({ error: "Koneksi GitHub belum siap. Secret GH_DISPATCH_TOKEN harus ditambahkan tanpa spasi di awal nama." }, 503);
+  const githubToken = dispatchToken(env);
+  if (!githubToken) return json({ error: "Koneksi GitHub belum siap. Secret GH_DISPATCH_TOKEN belum ditemukan di Cloudflare Pages." }, 503);
 
   const body = await request.json() as { projectId: string; assetIds: string[]; genre: string; targetDuration: number; instructions?: string };
   if (!body.projectId || !Array.isArray(body.assetIds) || body.assetIds.length < 1 || body.assetIds.length > 10) return json({ error: "Pilih 1–10 video yang sudah berhasil diunggah." }, 400);
@@ -45,7 +46,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const signature = await signJob(env, jobId, user.id, expires);
   const dispatch = await fetch("https://api.github.com/repos/Alvanza0904/ai-video-factory/actions/workflows/ai-edit.yml/dispatches", {
     method: "POST",
-    headers: { Authorization: "Bearer " + env.GH_DISPATCH_TOKEN, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json", "User-Agent": "AI-Video-Factory" },
+    headers: { Authorization: "Bearer " + githubToken, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json", "User-Agent": "AI-Video-Factory" },
     body: JSON.stringify({ ref: "main", inputs: { job_id: jobId, user_id: user.id, project_id: body.projectId, expires, signature, assets_json: JSON.stringify(selected.map(asset => ({ id: asset.id, key: asset.r2_key, filename: asset.original_filename }))), target_duration: String(body.targetDuration), genre: body.genre, instructions: (body.instructions || "").slice(0, 2000) } })
   });
   if (!dispatch.ok) {
