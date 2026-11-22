@@ -20,7 +20,7 @@ params = urllib.parse.urlencode({
 request = urllib.request.Request(
     os.environ["FAILURE_REPORT_URL"] + "?" + params,
     data=json.dumps({"message": "AI editing gagal pada tahap analisis, transkripsi, atau rendering. Buka GitHub Actions untuk detail teknis."}).encode(),
-    headers={"Content-Type": "application/json"},
+    headers={"Content-Type": "application/json", "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"]},
     method="POST"
 )
 try:
