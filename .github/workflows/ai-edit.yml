@@ -7,6 +7,10 @@ on:
         description: "Editing job UUID"
         required: true
         type: string
+      manifest_json:
+        description: "Signed private editing manifest"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -32,6 +36,7 @@ jobs:
       - name: Analyze footage, create edit plan, and render
         env:
           JOB_ID: ${{ inputs.job_id }}
+          MANIFEST_JSON: ${{ inputs.manifest_json }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_TOKEN: ${{ github.token }}
           MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
@@ -45,6 +50,7 @@ jobs:
         if: failure()
         env:
           JOB_ID: ${{ inputs.job_id }}
+          MANIFEST_JSON: ${{ inputs.manifest_json }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_TOKEN: ${{ github.token }}
           MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
