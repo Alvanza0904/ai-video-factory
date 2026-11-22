@@ -25,7 +25,13 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Type check
         run: npx tsc --noEmit
+      - name: Install FFmpeg for renderer smoke test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
       - name: Validate Python render and AI worker syntax
         run: python3 -m py_compile scripts/*.py
+      - name: Test generated sound library and audio mixing
+        run: python3 scripts/audio_smoke_test.py
       - name: Build
         run: npm run build
