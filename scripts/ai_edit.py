@@ -42,18 +42,15 @@ def api_json(url: str, payload: dict, timeout: int = 180) -> dict:
 
 
 def load_manifest() -> dict:
-    # The signed manifest is passed as a workflow_dispatch input by the authenticated
-    # Cloudflare Pages function. This avoids a second GitHub-runner -> Pages request,
-    # which was consistently rejected with HTTP 403 before AI analysis could start.
-    raw_manifest = os.environ.get("MANIFEST_JSON", "").strip()
-    if not raw_manifest:
-        raise RuntimeError("Signed editing manifest was not supplied to the workflow.")
+    params = urllib.parse.urlencode({"job_id": os.environ["JOB_ID"], "run_id": os.environ["GITHUB_RUN_ID"]})
+    request = urllib.request.Request(os.environ["MANIFEST_URL"] + "?" + params,
+        headers={"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"], "Accept": "application/json"})
     try:
-        manifest = json.loads(raw_manifest)
-    except json.JSONDecodeError:
-        raise RuntimeError("Signed editing manifest is not valid JSON.") from None
-    if manifest.get("jobId") != os.environ.get("JOB_ID"):
-        raise RuntimeError("Signed editing manifest does not match this job.")
+        with urllib.request.urlopen(request, timeout=30) as response:
+            manifest = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(f"Could not load private job manifest (HTTP {error.code}): {detail}") from None
     os.environ["USER_ID"] = manifest["userId"]
     os.environ["PROJECT_ID"] = manifest["projectId"]
     os.environ["JOB_EXPIRES"] = manifest["expires"]
