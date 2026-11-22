@@ -99,7 +99,7 @@ def download_assets() -> list[dict]:
 def transcribe(assets: list[dict]) -> dict[str, list[dict]]:
     """Small local Whisper model runs on the GitHub-hosted runner; no extra speech API key."""
     from faster_whisper import WhisperModel
-    model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    model = WhisperModel("small", device="cpu", compute_type="int8")
     transcripts: dict[str, list[dict]] = {}
     for asset in assets:
         audio = WORK / (Path(asset["path"]).stem + ".wav")
@@ -111,9 +111,17 @@ def transcribe(assets: list[dict]) -> dict[str, list[dict]]:
             "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", asset["path"],
             "-vn", "-ac", "1", "-ar", "16000", str(audio)
         ], check=True, capture_output=True)
-        segments, _ = model.transcribe(str(audio), vad_filter=True, beam_size=1)
+        segments, _ = model.transcribe(str(audio), vad_filter=True, beam_size=5, word_timestamps=True)
         transcripts[asset["id"]] = [
-            {"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()}
+            {
+                "start": round(s.start, 2),
+                "end": round(s.end, 2),
+                "text": s.text.strip(),
+                "words": [
+                    {"start": round(w.start, 2), "end": round(w.end, 2), "text": w.word}
+                    for w in (s.words or [])
+                ]
+            }
             for s in segments if s.text.strip()
         ]
     return transcripts
@@ -123,9 +131,13 @@ def sample_frames(assets: list[dict]) -> tuple[list[dict], list[dict]]:
     images: list[dict] = []
     frame_map: list[dict] = []
     for asset in assets:
-        for fraction in (0.2, 0.5, 0.8):
-            timestamp = max(0.05, min(asset["duration"] - 0.05, asset["duration"] * fraction))
-            image_path = WORK / f"{asset['id'][:8]}-{int(fraction * 100)}.jpg"
+        # Dense visual sampling across the whole clip, rather than three arbitrary frames.
+        duration = float(asset["duration"])
+        sample_count = min(10, max(3, int(duration // 2.5) + 1))
+        timestamps = [duration * (i + 0.5) / sample_count for i in range(sample_count)]
+        for frame_index, timestamp_value in enumerate(timestamps, start=1):
+            timestamp = max(0.05, min(duration - 0.05, timestamp_value))
+            image_path = WORK / f"{asset['id'][:8]}-frame-{frame_index:02d}.jpg"
             subprocess.run([
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", str(timestamp),
                 "-i", asset["path"], "-frames:v", "1", "-vf", "scale=640:-2",
@@ -134,11 +146,11 @@ def sample_frames(assets: list[dict]) -> tuple[list[dict], list[dict]]:
             encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
             images.append({
                 "type": "image_url",
-                "image_url": {"url": "data:image/jpeg;base64," + encoded, "detail": "low"}
+                "image_url": {"url": "data:image/jpeg;base64," + encoded, "detail": "high"}
             })
             frame_map.append({
                 "asset_id": asset["id"], "filename": asset.get("filename"),
-                "timestamp": round(timestamp, 2), "duration": round(asset["duration"], 2)
+                "timestamp": round(timestamp, 2), "frame_number": frame_index, "duration": round(asset["duration"], 2)
             })
     return images, frame_map
 
@@ -322,11 +334,11 @@ def main() -> None:
     WORK.mkdir(exist_ok=True)
     load_manifest()
     assets = download_assets()
-    print("Transcribing dialogue with local Whisper tiny model...")
+    print("Transcribing dialogue with local Whisper small model and word timestamps...")
     transcripts = transcribe(assets)
     global images_for_director
     images_for_director, frame_map = sample_frames(assets)
-    print(f"Sending {len(frame_map)} keyframes and transcripts to AI Director ({VISION_MODEL})...")
+    print(f"Sending {len(frame_map)} dense visual samples and improved transcripts to AI Director ({VISION_MODEL})...")
     blueprint = ask_director(assets, transcripts, frame_map)
     validate_blueprint(blueprint, assets, int(os.environ["TARGET_DURATION"]))
     Path("editing-blueprint.json").write_text(json.dumps(blueprint, ensure_ascii=False, indent=2), encoding="utf-8")
