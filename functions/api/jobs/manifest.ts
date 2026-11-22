@@ -19,6 +19,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!object) return json({ error: "Manifest job tidak ditemukan." }, 404);
 
   const manifest = await object.json() as { jobId?: string };
-  if (manifest.jobId !== jobId) return json({ error: "Manifest tidak cocok dengan job yang diminta." }, 403);
+  if (manifest.jobId !== jobId) return json({ error: "Manifest tidak cocok dengan job yang diminta.", requestedJobId: jobId, storedJobId: manifest.jobId || null }, 409);
   return json(manifest);
 };
