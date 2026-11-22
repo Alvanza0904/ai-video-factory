@@ -1,4 +1,4 @@
-import { Env, json, supabase, userFrom, verifyJobSignature } from "../_shared";
+import { Env, json, verifyJobSignature } from "../_shared";
 
 function parseRange(value: string | null, size: number): { offset: number; length: number } | null | "invalid" {
   if (!value) return null;
@@ -29,10 +29,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!jobId || !userId || !(await verifyJobSignature(env, jobId, userId, expires, signature))) {
     return json({ error: "Tautan pemutaran tidak valid atau kedaluwarsa." }, 403);
   }
-  const check = await supabase(request, env, `/rest/v1/editing_jobs?id=eq.${encodeURIComponent(jobId)}&user_id=eq.${encodeURIComponent(userId)}&status=eq.completed&select=id`);
-  const rows = await check.json() as unknown[];
-  if (!check.ok || !rows.length) return json({ error: "Video tidak ditemukan atau belum selesai." }, 404);
-
+  // The HMAC signature already authorizes this exact user/job pair.
+  // Do not require a browser Authorization header here: native <video> and
+  // download navigations cannot reliably attach the Supabase bearer token.
   const key = `users/${userId}/renders/${jobId}.mp4`;
   const head = await env.MEDIA_BUCKET.head(key);
   if (!head) return json({ error: "File video tidak ditemukan di penyimpanan." }, 404);
