@@ -1,0 +1,22 @@
+name: Workers Gateway Connectivity Check
+
+on:
+  push:
+    paths:
+      - ".github/workflows/gateway-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gateway-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check Workers gateway from GitHub-hosted runner
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --max-time 20 https://avf-runner-gateway.freftialvanza0904.workers.dev/health)"
+          echo "$response"
+          echo "$response" | python -c "import json,sys; d=json.load(sys.stdin); assert d.get('ok') is True"
