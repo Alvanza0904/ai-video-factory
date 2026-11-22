@@ -49,7 +49,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const dispatch = await fetch("https://api.github.com/repos/Alvanza0904/ai-video-factory/actions/workflows/ai-edit.yml/dispatches", {
     method: "POST",
     headers: { Authorization: "Bearer " + githubToken, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json", "User-Agent": "AI-Video-Factory" },
-    body: JSON.stringify({ ref: "main", inputs: { job_id: jobId, manifest_json: JSON.stringify(manifest) } })
+    body: JSON.stringify({ ref: "main", inputs: { job_id: jobId } })
   });
   if (!dispatch.ok) {
     const raw = await dispatch.text();
