@@ -15,7 +15,7 @@ except Exception as error:
 
 params = urllib.parse.urlencode({
     "job_id": manifest["jobId"], "user_id": manifest["userId"],
-    "expires": manifest["expires"], "signature": manifest["signature"]
+    "expires": manifest["expires"], "signature": manifest["signature"], "run_id": os.environ["GITHUB_RUN_ID"]
 })
 request = urllib.request.Request(
     os.environ["FAILURE_REPORT_URL"] + "?" + params,
