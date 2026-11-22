@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   gateway-health:
@@ -20,3 +21,14 @@ jobs:
           response="$(curl --fail --silent --show-error --max-time 20 https://avf-runner-gateway.freftialvanza0904.workers.dev/health)"
           echo "$response"
           echo "$response" | python -c "import json,sys; d=json.load(sys.stdin); assert d.get('ok') is True"
+      - name: Check private manifest access through GitHub token
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_ID: b8feeef9-0068-49de-9f5f-81ba0d40d418
+          TARGET_RUN_ID: "44991587899"
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --max-time 20 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://avf-runner-gateway.freftialvanza0904.workers.dev/api/jobs/manifest?job_id=$JOB_ID&run_id=$TARGET_RUN_ID")"
+          echo "$response" | python -c "import json,sys; d=json.load(sys.stdin); assert d.get('jobId') == '$JOB_ID'; assert len(d.get('assets', [])) > 0; print('Private manifest authorized; source assets:', len(d['assets']))"
