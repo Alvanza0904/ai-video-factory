@@ -44,7 +44,7 @@ def api_json(url: str, payload: dict, timeout: int = 180) -> dict:
 def load_manifest() -> dict:
     params = urllib.parse.urlencode({"job_id": os.environ["JOB_ID"], "run_id": os.environ["GITHUB_RUN_ID"]})
     request = urllib.request.Request(os.environ["MANIFEST_URL"] + "?" + params,
-        headers={"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"], "Accept": "application/json"})
+        headers={"Authorization": "Bearer " + os.environ["OIDC_TOKEN"], "Accept": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             manifest = json.loads(response.read().decode("utf-8"))
@@ -78,7 +78,7 @@ def download_assets() -> list[dict]:
         query = urllib.parse.urlencode({**params, "key": asset["key"], "run_id": os.environ["GITHUB_RUN_ID"]})
         url = base + "?" + query
         path = WORK / f"source-{index:02d}.mov"
-        request = urllib.request.Request(url, headers={"User-Agent": "AI-Video-Factory-Runner/1", "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"]})
+        request = urllib.request.Request(url, headers={"User-Agent": "AI-Video-Factory-Runner/1", "Authorization": "Bearer " + os.environ["OIDC_TOKEN"]})
         with urllib.request.urlopen(request, timeout=180) as response, path.open("wb") as file:
             while chunk := response.read(1024 * 1024):
                 file.write(chunk)
@@ -304,7 +304,7 @@ def upload_output() -> None:
     data = OUTPUT.read_bytes()
     request = urllib.request.Request(
         os.environ["OUTPUT_UPLOAD_BASE_URL"] + "?" + params, data=data,
-        headers={"Content-Type": "video/mp4", "Content-Length": str(len(data)), "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"]},
+        headers={"Content-Type": "video/mp4", "Content-Length": str(len(data)), "Authorization": "Bearer " + os.environ["OIDC_TOKEN"]},
         method="POST"
     )
     try:
