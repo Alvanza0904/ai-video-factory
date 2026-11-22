@@ -228,9 +228,46 @@ def validate_blueprint(blueprint: dict, assets: list[dict], target: int) -> None
             raise ValueError("AI blueprint contains an invalid source time range.")
         if scene["timeline_end"] <= scene["timeline_start"]:
             raise ValueError("AI blueprint contains an invalid timeline range.")
-    last = max(scene["timeline_end"] for scene in blueprint["scenes"])
-    if last < target * 0.85 or last > target + 1:
+    scenes = blueprint["scenes"]
+    scenes.sort(key=lambda item: float(item["timeline_start"]))
+    cursor = 0.0
+    for scene in scenes:
+        start = float(scene["timeline_start"])
+        end = float(scene["timeline_end"])
+        if abs(start - cursor) > 0.12:
+            raise ValueError("AI blueprint contains a timeline gap or overlap; refusing a random-feeling assembly.")
+        cursor = end
+    if cursor < target * 0.85 or cursor > target + 1:
         raise ValueError("AI blueprint timeline does not match the requested output duration.")
+    if len(scenes) > 18:
+        raise ValueError("AI blueprint uses too many cuts; use fewer, more purposeful scenes.")
+
+
+def ensure_sound_design(blueprint: dict) -> None:
+    """Guarantee restrained original SFX when the AI omits usable cues."""
+    scenes = sorted(blueprint["scenes"], key=lambda item: float(item["timeline_start"]))
+    valid_ids = {"vine_boom_style", "bruh_drop", "boing", "record_scratch", "whoosh", "engine_rev", "sad_trombone"}
+    existing = [cue for scene in scenes for cue in scene.get("audio_cues", [])
+                if str(cue.get("asset_id") or "").lower() in valid_ids]
+    if len(existing) >= 2:
+        return
+    genre = blueprint.get("classification", {}).get("primary_genre", "other")
+    candidates = scenes[1:-1] if len(scenes) > 2 else scenes[1:]
+    wanted = 3 if genre in ("comedy", "two_character", "pov") else 2
+    choices = (["boing", "record_scratch", "bruh_drop"] if genre in ("comedy", "two_character")
+               else ["whoosh", "engine_rev", "vine_boom_style"])
+    for index, scene in enumerate(candidates):
+        if len(existing) >= wanted:
+            break
+        at = float(scene["timeline_start"]) + 0.08
+        if any(abs(float(c.get("at", -100)) - at) < 1.2 for item in scenes for c in item.get("audio_cues", [])):
+            continue
+        asset_id = choices[index % len(choices)]
+        kind = "comedy" if asset_id in ("boing", "record_scratch", "bruh_drop") else ("engine" if asset_id == "engine_rev" else ("impact" if asset_id == "vine_boom_style" else "whoosh"))
+        scene.setdefault("audio_cues", []).append({"kind": kind, "asset_id": asset_id, "at": round(at, 2),
+            "duration": 0.75, "gain_db": -13.0})
+        existing.append(scene["audio_cues"][-1])
+    print(f"Sound design: {len(existing)} original SFX cues scheduled.")
 
 
 def make_srt(blueprint: dict) -> Path:
@@ -344,6 +381,7 @@ def resolve_sound_cue(cue: dict, library: dict[str, Path]) -> Path | None:
 def build_audio_mix(blueprint: dict, source_video: Path, output: Path, subtitle_filter: str) -> None:
     """Mix source dialogue with timestamped, dialogue-ducked original SFX."""
     library = generate_sound_library()
+    ensure_sound_design(blueprint)
     cues = []
     for scene in blueprint["scenes"]:
         for cue in scene.get("audio_cues", []):
@@ -354,7 +392,7 @@ def build_audio_mix(blueprint: dict, source_video: Path, output: Path, subtitle_
             if at >= float(blueprint["output"]["duration_seconds"]):
                 continue
             duration = max(0.12, min(float(cue.get("duration", 1.0)), 2.0))
-            gain_db = min(-12.0, max(-30.0, float(cue.get("gain_db", -20))))
+            gain_db = min(-10.0, max(-24.0, float(cue.get("gain_db", -14))))
             cues.append((sound, at, duration, gain_db))
     cues = sorted(cues, key=lambda item: item[1])[:14]
 
@@ -390,7 +428,7 @@ def build_audio_mix(blueprint: dict, source_video: Path, output: Path, subtitle_
         cmd += ["-map", "0:v:0", "-map", "0:a:0", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
 
     cmd += [
-        "-vf", subtitle_filter + ":force_style='FontName=Arial,FontSize=19,Outline=2,Shadow=1,Alignment=2,MarginV=135'",
+        "-vf", subtitle_filter + ":force_style='FontName=Arial,FontSize=18,Bold=1,Outline=3,Shadow=1,Alignment=2,MarginV=250,BorderStyle=1,Spacing=0.2'",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
         "-c:a", "aac", "-b:a", "160k", "-t", str(blueprint["output"]["duration_seconds"]),
         "-movflags", "+faststart", str(output)
@@ -419,7 +457,9 @@ def render(blueprint: dict, assets: list[dict]) -> None:
             "natural": "eq=contrast=1.01:saturation=1.02",
             "neutral": "null"
         }.get(profile, "null")
-        video_filters = f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,{color},setpts=PTS/{speed:.6f},format=yuv420p"
+        # Consistent, restrained premium grade on every scene; AI profile adds a small mood adjustment.
+        base_grade = "eq=contrast=1.07:saturation=1.06:gamma=1.02:brightness=0.004,curves=all='0/0.015 0.25/0.23 0.75/0.79 1/0.985',colorbalance=rs=0.012:gs=0.004:bs=-0.008"
+        video_filters = f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,{base_grade},{color},setpts=PTS/{speed:.6f},format=yuv420p"
         part = WORK / f"scene-{index:02d}.mp4"
         has_audio = subprocess.run([
             "ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries",
@@ -481,6 +521,7 @@ def main() -> None:
     print(f"Sending {len(frame_map)} dense visual samples and improved transcripts to AI Director ({VISION_MODEL})...")
     blueprint = ask_director(assets, transcripts, frame_map)
     validate_blueprint(blueprint, assets, int(os.environ["TARGET_DURATION"]))
+    ensure_sound_design(blueprint)
     Path("editing-blueprint.json").write_text(json.dumps(blueprint, ensure_ascii=False, indent=2), encoding="utf-8")
     print("AI Director plan validated. Rendering...")
     render(blueprint, assets)
