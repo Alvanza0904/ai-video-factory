@@ -75,10 +75,10 @@ def download_assets() -> list[dict]:
     }
     output = []
     for index, asset in enumerate(assets, start=1):
-        query = urllib.parse.urlencode({**params, "key": asset["key"]})
+        query = urllib.parse.urlencode({**params, "key": asset["key"], "run_id": os.environ["GITHUB_RUN_ID"]})
         url = base + "?" + query
         path = WORK / f"source-{index:02d}.mov"
-        request = urllib.request.Request(url, headers={"User-Agent": "AI-Video-Factory-Runner/1"})
+        request = urllib.request.Request(url, headers={"User-Agent": "AI-Video-Factory-Runner/1", "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"]})
         with urllib.request.urlopen(request, timeout=180) as response, path.open("wb") as file:
             while chunk := response.read(1024 * 1024):
                 file.write(chunk)
@@ -299,12 +299,12 @@ def render(blueprint: dict, assets: list[dict]) -> None:
 def upload_output() -> None:
     params = urllib.parse.urlencode({
         "job_id": os.environ["JOB_ID"], "user_id": os.environ["USER_ID"],
-        "expires": os.environ["JOB_EXPIRES"], "signature": os.environ["JOB_SIGNATURE"]
+        "expires": os.environ["JOB_EXPIRES"], "signature": os.environ["JOB_SIGNATURE"], "run_id": os.environ["GITHUB_RUN_ID"]
     })
     data = OUTPUT.read_bytes()
     request = urllib.request.Request(
         os.environ["OUTPUT_UPLOAD_BASE_URL"] + "?" + params, data=data,
-        headers={"Content-Type": "video/mp4", "Content-Length": str(len(data))},
+        headers={"Content-Type": "video/mp4", "Content-Length": str(len(data)), "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"]},
         method="POST"
     )
     try:
