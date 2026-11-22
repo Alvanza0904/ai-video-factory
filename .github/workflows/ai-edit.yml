@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   actions: read
+  id-token: write
 
 concurrency:
   group: ai-video-factory-job-${{ inputs.job_id }}
@@ -29,6 +30,12 @@ jobs:
           sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
           pip install faster-whisper jsonschema
+      - name: Obtain short-lived GitHub runner identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(curl --fail --silent --show-error -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=ai-video-factory" | python -c "import json,sys; print(json.load(sys.stdin)['value'])")"
+          echo "OIDC_TOKEN=$token" >> "$GITHUB_ENV"
       - name: Analyze footage, create edit plan, and render
         env:
           JOB_ID: ${{ inputs.job_id }}
