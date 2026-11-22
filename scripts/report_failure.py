@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 import json, os, urllib.parse, urllib.request, urllib.error
 
-manifest_query = urllib.parse.urlencode({"job_id": os.environ["JOB_ID"], "run_id": os.environ["GITHUB_RUN_ID"]})
-manifest_request = urllib.request.Request(
-    os.environ["MANIFEST_URL"] + "?" + manifest_query,
-    headers={"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"], "Accept": "application/json"}
-)
+raw_manifest = os.environ.get("MANIFEST_JSON", "").strip()
 try:
-    with urllib.request.urlopen(manifest_request, timeout=30) as response:
-        manifest = json.loads(response.read().decode())
-except Exception as error:
-    print("Could not load job manifest for failure report:", type(error).__name__)
+    manifest = json.loads(raw_manifest) if raw_manifest else None
+except json.JSONDecodeError:
+    manifest = None
+if not manifest or manifest.get("jobId") != os.environ.get("JOB_ID"):
+    print("Could not read the signed manifest from workflow inputs; failure status was not reported.")
     raise SystemExit(0)
 
 params = urllib.parse.urlencode({
