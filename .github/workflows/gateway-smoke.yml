@@ -19,7 +19,7 @@ jobs:
       - name: Check Workers gateway from GitHub-hosted runner
         run: |
           set -euo pipefail
-          response="$(curl --fail --silent --show-error --max-time 20 https://avf-runner-gateway.freftialvanza0904.workers.dev/health)"
+          response="$(curl --fail --silent --show-error --max-time 20 https://avf-runner.omodajaecoopalembang.web.id/health)"
           echo "$response"
           echo "$response" | python -c "import json,sys; d=json.load(sys.stdin); assert d.get('ok') is True"
       - name: Obtain short-lived GitHub runner identity
@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base="https://avf-runner-gateway.freftialvanza0904.workers.dev"
+          base="https://avf-runner.omodajaecoopalembang.web.id"
           auth="Authorization: Bearer $OIDC_TOKEN"
           seed="$(curl --fail --silent --show-error -H "$auth" "$base/auth-check?run_id=$GITHUB_RUN_ID&probe=seed")"
           job_id="$(echo "$seed" | python -c "import json,sys; print(json.load(sys.stdin)['jobId'])")"
