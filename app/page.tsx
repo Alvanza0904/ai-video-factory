@@ -267,7 +267,7 @@ export default function Home() {
         if(!response.ok||!data.success) throw new Error(data.error||"Gagal");
         cancelled++;
         setLibraryJobs(prev=>prev.map(item=>item.id===j.id?{...item,status:"cancelled",progress:0,error_message:"Dibatalkan oleh pengguna."}:item));
-        if(jobId===j.id){setJobStatus("cancelled");setOutputUrl("");localStorage.removeItem("avf-active-job");}
+        if(jobId===j.id){setJobStatus("cancelled");setOutputUrl("");setJobId("");localStorage.removeItem("avf-active-job");}
       } catch(e) { errors.push(j.title||j.id.slice(0,8)); }
     }));
     setNotice(cancelled+" proses berhasil dibatalkan."+ (errors.length?" "+errors.length+" proses belum berhasil dihentikan; muat ulang lalu coba lagi.":""));
