@@ -67,9 +67,22 @@ export default function Home() {
         if (!response.ok) throw new Error(data.error || "Gagal memeriksa status editing.");
         if (!active || !data.job) return;
         setJobStatus(data.job.status);
-        if (data.job.status === "completed" && data.outputUrl) { setOutputUrl(data.outputUrl); setNotice("AI editing selesai. Video final sudah siap diputar."); }
-        else if (data.job.status === "failed") { setNotice(data.job.error_message || "Proses editing gagal. Cek detail job."); }
-      } catch (error) { if (active) setNotice((error as Error).message); }
+        if (data.job.status === "completed" && data.outputUrl) {
+          setOutputUrl(data.outputUrl);
+          setNotice("AI editing selesai. Video final sudah siap diputar.");
+          localStorage.removeItem("avf-active-job");
+        } else if (data.job.status === "failed") {
+          setNotice(data.job.error_message || "Proses editing gagal. Cek detail job.");
+        } else if (jobStatus === "restoring") {
+          setNotice("Status AI Editing berhasil dipulihkan. Proses tetap berjalan di cloud.");
+        }
+      } catch {
+        if (active) {
+          // A temporary fetch failure (often when iOS suspends/resumes a tab)
+          // must not be presented as an editing failure. Keep the job ID and retry.
+          setNotice("Koneksi status terputus sementara. Job tetap tersimpan di cloud; aplikasi akan mencoba memuat ulang otomatis.");
+        }
+      }
     };
     void poll();
     const timer = window.setInterval(poll, 10000);
