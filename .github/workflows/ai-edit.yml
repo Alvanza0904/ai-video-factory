@@ -33,7 +33,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
-          pip install "av==14.4.0" "faster-whisper==1.2.1" jsonschema
+          pip install --only-binary=:all: "av==18.1.0" "faster-whisper==1.2.1" jsonschema
       - name: Obtain short-lived GitHub runner identity
         shell: bash
         run: |
