@@ -1,4 +1,4 @@
-import { Env, json, supabase, userFrom } from "../_shared";
+import { Env, json, supabase, userFrom, signJob } from "../_shared";
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await userFrom(request, env);
@@ -38,5 +38,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       if (outputOk && update.ok) { job.status = "completed"; job.progress = 100; }
     }
   }
-  return json({ job, outputUrl: job.status === "completed" ? "/api/jobs/output?job_id=" + encodeURIComponent(jobId) : null });
+  let outputUrl: string | null = null;
+  if (job.status === "completed") {
+    const expires = String(Math.floor(Date.now() / 1000) + 3600);
+    const signature = await signJob(env, jobId, user.id, expires);
+    const query = new URLSearchParams({ job_id: jobId, user_id: user.id, expires, signature });
+    outputUrl = "/api/jobs/output?" + query.toString();
+  }
+  return json({ job, outputUrl });
 };
