@@ -28,9 +28,23 @@ jobs:
           set -euo pipefail
           token="$(curl --fail --silent --show-error -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=ai-video-factory" | python -c "import json,sys; print(json.load(sys.stdin)['value'])")"
           echo "OIDC_TOKEN=$token" >> "$GITHUB_ENV"
-      - name: Verify signed runner identity
+      - name: Verify private manifest, download, output, and failure storage
+        shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --max-time 20 \
-            -H "Authorization: Bearer $OIDC_TOKEN" \
-            "https://avf-runner-gateway.freftialvanza0904.workers.dev/auth-check?run_id=${GITHUB_RUN_ID}"
+          base="https://avf-runner-gateway.freftialvanza0904.workers.dev"
+          auth="Authorization: Bearer $OIDC_TOKEN"
+          seed="$(curl --fail --silent --show-error -H "$auth" "$base/auth-check?run_id=$GITHUB_RUN_ID&probe=seed")"
+          job_id="$(echo "$seed" | python -c "import json,sys; print(json.load(sys.stdin)['jobId'])")"
+          asset_key="$(echo "$seed" | python -c "import json,sys; print(json.load(sys.stdin)['key'])")"
+          cleanup() { curl --silent --show-error -H "$auth" "$base/auth-check?run_id=$GITHUB_RUN_ID&probe=cleanup&job_id=$job_id" >/dev/null || true; }
+          trap cleanup EXIT
+          manifest="$(curl --fail --silent --show-error -H "$auth" "$base/api/jobs/manifest?job_id=$job_id&run_id=$GITHUB_RUN_ID")"
+          echo "$manifest" | python -c "import json,sys; d=json.load(sys.stdin); assert d['jobId']=='$job_id' and len(d['assets'])==1; print('Private manifest read: OK')"
+          downloaded="$(curl --fail --silent --show-error -H "$auth" "$base/api/jobs/download?job_id=$job_id&run_id=$GITHUB_RUN_ID&key=$asset_key")"
+          test "$downloaded" = "gateway-source-probe"
+          echo "Private R2 source download: OK"
+          uploaded="$(printf 'gateway-output-probe' | curl --fail --silent --show-error -X POST -H "$auth" -H "Content-Type: video/mp4" --data-binary @- "$base/api/jobs/output?job_id=$job_id&run_id=$GITHUB_RUN_ID")"
+          echo "$uploaded" | python -c "import json,sys; assert json.load(sys.stdin).get('success') is True; print('R2 output upload: OK')"
+          failure="$(printf '{"message":"gateway smoke test"}' | curl --fail --silent --show-error -X POST -H "$auth" -H "Content-Type: application/json" --data-binary @- "$base/api/jobs/failure?job_id=$job_id&run_id=$GITHUB_RUN_ID")"
+          echo "$failure" | python -c "import json,sys; assert json.load(sys.stdin).get('success') is True; print('Failure callback storage: OK')"
