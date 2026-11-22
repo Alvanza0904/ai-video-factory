@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import base64
 import json
+import math
+import random
+import struct
+import wave
 import os
 import re
 import subprocess
@@ -252,6 +256,147 @@ def make_srt(blueprint: dict) -> Path:
     return path
 
 
+
+def generate_sound_library() -> dict[str, Path]:
+    """Create original, royalty-free meme-style accents locally for this render."""
+    library_dir = WORK / "sound-library"
+    library_dir.mkdir(parents=True, exist_ok=True)
+    sample_rate = 48000
+    rng = random.Random(20261122)
+
+    def write_sound(name: str, duration: float, synth) -> Path:
+        path = library_dir / f"{name}.wav"
+        frames = int(sample_rate * duration)
+        with wave.open(str(path), "wb") as out:
+            out.setnchannels(1)
+            out.setsampwidth(2)
+            out.setframerate(sample_rate)
+            data = bytearray()
+            for i in range(frames):
+                t = i / sample_rate
+                value = max(-1.0, min(1.0, synth(t, duration)))
+                data.extend(struct.pack("<h", int(value * 32767)))
+            out.writeframes(data)
+        return path
+
+    def impact(t: float, d: float) -> float:
+        env = math.exp(-5.2 * t)
+        freq = 105 - 52 * min(1, t / d)
+        return (math.sin(2 * math.pi * freq * t) * 0.78 + (rng.random() * 2 - 1) * 0.22) * env
+
+    def whoosh(t: float, d: float) -> float:
+        x = t / d
+        env = max(0.0, math.sin(math.pi * x)) ** 1.7
+        return (rng.random() * 2 - 1) * env * 0.58
+
+    def boing(t: float, d: float) -> float:
+        env = math.exp(-3.3 * t)
+        phase = 2 * math.pi * (155 * t + 38 * (1 - math.exp(-7 * t)) / 7)
+        return math.sin(phase) * env * 0.72
+
+    def scratch(t: float, d: float) -> float:
+        env = math.exp(-2.8 * t) * (0.45 + 0.55 * abs(math.sin(2 * math.pi * 8 * t)))
+        tone = math.sin(2 * math.pi * (620 - 310 * t / d) * t)
+        noise = rng.random() * 2 - 1
+        return (tone * 0.55 + noise * 0.45) * env
+
+    def engine(t: float, d: float) -> float:
+        x = t / d
+        freq = 75 + 190 * x
+        phase = 2 * math.pi * (75 * t + 95 * t * t / d)
+        return (2 / math.pi) * math.asin(math.sin(phase)) * (0.25 + 0.65 * x)
+
+    def sad_tone(t: float, d: float) -> float:
+        freq = 440 - 95 * (t / d)
+        return math.sin(2 * math.pi * freq * t) * math.exp(-1.1 * t) * 0.55
+
+    return {
+        "impact": write_sound("impact", 1.05, impact),
+        "whoosh": write_sound("whoosh", 0.85, whoosh),
+        "boing": write_sound("boing", 1.15, boing),
+        "scratch": write_sound("record-scratch", 0.9, scratch),
+        "engine": write_sound("engine-rev", 1.35, engine),
+        "sad": write_sound("sad-trombone-style", 1.6, sad_tone),
+    }
+
+
+def resolve_sound_cue(cue: dict, library: dict[str, Path]) -> Path | None:
+    if cue.get("kind") in ("music", "voiceover", "silence"):
+        return None
+    requested = str(cue.get("asset_id") or "").lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "vine_boom": "impact", "vine_boom_style": "impact", "bruh": "impact",
+        "bruh_drop": "impact", "impact": "impact", "dramatic_hit": "impact",
+        "whoosh": "whoosh", "swoosh": "whoosh", "transition_whoosh": "whoosh",
+        "boing": "boing", "cartoon_boing": "boing", "comedy": "boing",
+        "record_scratch": "scratch", "scratch": "scratch",
+        "engine": "engine", "engine_rev": "engine",
+        "sad_violin": "sad", "sad_trombone": "sad",
+    }
+    key = aliases.get(requested)
+    if key is None:
+        key = {"whoosh": "whoosh", "impact": "impact", "comedy": "boing",
+               "engine": "engine", "ambience": "whoosh"}.get(cue.get("kind"))
+    return library.get(key) if key else None
+
+
+def build_audio_mix(blueprint: dict, source_video: Path, output: Path, subtitle_filter: str) -> None:
+    """Mix source dialogue with timestamped, dialogue-ducked original SFX."""
+    library = generate_sound_library()
+    cues = []
+    for scene in blueprint["scenes"]:
+        for cue in scene.get("audio_cues", []):
+            sound = resolve_sound_cue(cue, library)
+            if sound is None:
+                continue
+            at = max(0.0, float(cue.get("at", scene.get("timeline_start", 0))))
+            if at >= float(blueprint["output"]["duration_seconds"]):
+                continue
+            duration = max(0.12, min(float(cue.get("duration", 1.0)), 2.0))
+            gain_db = min(-12.0, max(-30.0, float(cue.get("gain_db", -20))))
+            cues.append((sound, at, duration, gain_db))
+    cues = sorted(cues, key=lambda item: item[1])[:14]
+
+    cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(source_video)]
+    for sound, _, _, _ in cues:
+        cmd += ["-i", str(sound)]
+
+    if cues:
+        filters = []
+        mix_labels = ["[0:a]"]
+        for index, (_, at, duration, gain_db) in enumerate(cues, start=1):
+            delay_ms = int(at * 1000)
+            label = f"sfx{index}"
+            ducked = f"duck{index}"
+            volume = 10 ** (gain_db / 20)
+            filters.append(
+                f"[{index}:a]atrim=duration={duration:.3f},asetpts=PTS-STARTPTS,"
+                f"volume={volume:.5f},adelay={delay_ms}|{delay_ms}[{label}]"
+            )
+            filters.append(
+                f"[{label}][0:a]sidechaincompress=threshold=0.025:ratio=8:"
+                f"attack=12:release=260[{ducked}]"
+            )
+            mix_labels.append(f"[{ducked}]")
+        filters.append(
+            "".join(mix_labels) + f"amix=inputs={len(mix_labels)}:duration=first:"
+            "dropout_transition=0:normalize=0,alimiter=limit=0.89,"
+            "loudnorm=I=-16:TP=-1.5:LRA=11[aout]"
+        )
+        cmd += ["-filter_complex", ";".join(filters), "-map", "0:v:0", "-map", "[aout]"]
+        print(f"Sound design: mixed {len(cues)} timestamped SFX cues with dialogue ducking.")
+    else:
+        cmd += ["-map", "0:v:0", "-map", "0:a:0", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
+
+    cmd += [
+        "-vf", subtitle_filter + ":force_style='FontName=Arial,FontSize=19,Outline=2,Shadow=1,Alignment=2,MarginV=135'",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+        "-c:a", "aac", "-b:a", "160k", "-t", str(blueprint["output"]["duration_seconds"]),
+        "-movflags", "+faststart", str(output)
+    ]
+    run(cmd)
+
+
 def render(blueprint: dict, assets: list[dict]) -> None:
     asset_map = {a["id"]: a for a in assets}
     normalized = []
@@ -299,13 +444,7 @@ def render(blueprint: dict, assets: list[dict]) -> None:
     run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(silent_concat)])
     captions = make_srt(blueprint)
     subtitle_filter = "subtitles=" + str(captions.resolve()).replace("\\", "/").replace(":", "\\:")
-    run([
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(silent_concat),
-        "-vf", subtitle_filter + ":force_style='FontName=Arial,FontSize=19,Outline=2,Shadow=1,Alignment=2,MarginV=135'",
-        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-c:a", "aac", "-b:a", "160k",
-        "-t", str(blueprint["output"]["duration_seconds"]), "-movflags", "+faststart", str(OUTPUT)
-    ])
+    build_audio_mix(blueprint, silent_concat, OUTPUT, subtitle_filter)
 
 
 def upload_output() -> None:
