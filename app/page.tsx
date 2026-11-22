@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Activity, ArrowUpRight, Clapperboard, Cloud, Film, Github, HardDrive, Layers3, LogOut, Menu, Settings2, Sparkles, UploadCloud, WandSparkles, X, Play, FolderPlus, CheckCircle2, Video, Clock3, AlertCircle, RefreshCw, Download } from "lucide-react";
+import { Activity, ArrowUpRight, Clapperboard, Cloud, Film, Github, HardDrive, Layers3, LogOut, Menu, Settings2, Sparkles, UploadCloud, WandSparkles, X, Play, FolderPlus, CheckCircle2, Video, Clock3, AlertCircle, RefreshCw, Download, Folder, ChevronRight, ArrowLeft } from "lucide-react";
 
 const API = "https://sdmnhhgcenhzfnvzwyzo.supabase.co";
 const ANON = "sb_publishable_uxSrstD_fl3oJS1BkfvtkA__KzQtI7A";
@@ -29,6 +29,7 @@ export default function Home() {
   const [libraryJobs, setLibraryJobs] = useState<LibraryJob[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState("");
+  const [selectedResultFolder, setSelectedResultFolder] = useState<string|null>(null);
   const [selectedGenre, setSelectedGenre] = useState("auto");
   const [notice, setNotice] = useState("Masuk untuk membuat proyek dan mengunggah footage langsung dari HP.");
   const [email, setEmail] = useState("");
@@ -173,7 +174,7 @@ export default function Home() {
   }
 
   async function openLibrary(page:string) {
-    setCurrentPage(page); setMenuOpen(false);
+    setCurrentPage(page); setSelectedResultFolder(null); setMenuOpen(false);
     if (session) await loadLibrary(session.access_token);
   }
 
@@ -272,7 +273,30 @@ export default function Home() {
           <div className="section-heading"><div><div className="eyebrow">PROJECT LIBRARY</div><h2>{({projects:"Semua Proyek",results:"Hasil Proyek Selesai",processing:"Sedang Diproses",failed:"Proyek Gagal"} as Record<string,string>)[currentPage]}</h2><p className="muted library-intro">Riwayat tersimpan di database dan tetap tersedia saat kamu membuka aplikasi kembali.</p></div><button className="secondary-button" onClick={()=>session&&loadLibrary(session.access_token)} disabled={libraryLoading}><RefreshCw size={15}/> Muat ulang</button></div>
           {libraryLoading&&<div className="library-empty">Memuat riwayat proyek…</div>}
           {libraryError&&<div className="notice"><AlertCircle size={16}/>{libraryError}</div>}
-          {!libraryLoading&&!libraryError&&(()=>{const visible=libraryJobs.filter(j=>currentPage==="projects"|| (currentPage==="results"?j.status==="completed"&&!!j.filename:currentPage==="processing"?["queued","analyzing","rendering","processing","running"].includes(j.status):j.status==="failed"));return visible.length===0?<div className="library-empty"><Video size={28}/><strong>Belum ada proyek di kelompok ini</strong><span>Proyek dan hasil editing akan muncul otomatis di sini setelah tersimpan.</span></div>:<div className="library-grid">{visible.map(j=><article className="library-card" key={j.id}><div className="library-card-top"><span className={`job-pill ${j.status==="completed"?"is-done":j.status==="failed"?"is-failed":"is-running"}`}>{j.status==="completed"?"Selesai":j.status==="failed"?"Gagal":j.status}</span><span className="muted tiny">{new Date(j.created_at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"})}</span></div><h3>{j.title||j.projectName}</h3><p className="muted tiny">{j.projectName} · {j.genre||"Auto"} · {j.target_duration||"-"} detik</p>{j.status==="completed"&&j.outputUrl?<><video className="library-video" controls playsInline preload="metadata" src={j.outputUrl}/><div className="library-actions"><a className="primary-button" href={j.outputUrl} download={j.filename||"video-final.mp4"}><Download size={15}/> Unduh video</a><span className="muted tiny">{j.size_bytes?Math.round(j.size_bytes/1048576)+" MB":""}</span></div></>:j.status==="completed"?<div className="library-warning">Render tercatat selesai, tetapi tautan pemutaran belum berhasil dimuat. Tekan Muat ulang.</div>:j.status==="failed"?<div className="library-warning">{j.error_message||"Proses editing gagal."}</div>:<div className="library-progress"><span>Progres</span><strong>{j.progress||0}%</strong><div><i style={{width:Math.max(0,Math.min(100,j.progress||0))+"%"}}/></div></div>}</article>)}</div>})()}
+          {!libraryLoading&&!libraryError&&(()=>{
+            const completed=libraryJobs.filter(j=>j.status==="completed"&&!!j.filename);
+            const folders=[
+              {id:"cinematic",name:"Cinematic",icon:"🎬",desc:"Visual cinematic dan automotive"},
+              {id:"drama",name:"Drama & Story",icon:"🎭",desc:"Storytelling dan dialog"},
+              {id:"pov",name:"POV",icon:"👁️",desc:"Sudut pandang orang pertama"},
+              {id:"comedy",name:"Comedy & Entertainment",icon:"😂",desc:"Hiburan, reaksi, dan punchline"},
+              {id:"two_character",name:"Two Characters",icon:"🎭",desc:"Satu aktor dengan beberapa peran"},
+              {id:"review",name:"Review & Talking Head",icon:"🎤",desc:"Review, presenter, dan penjelasan"},
+              {id:"mixed",name:"Mixed Content",icon:"🎞️",desc:"Format campuran"},
+              {id:"auto",name:"Auto Detect / Lainnya",icon:"✨",desc:"Kategori otomatis atau belum ditentukan"}
+            ];
+            const category=(genre:string|null)=>{const g=(genre||"auto").toLowerCase().replace(/[ &-]/g,"_");if(["cinematic","drama","pov","comedy","two_character","review","mixed"].includes(g))return g; if(g.includes("cinema"))return "cinematic";if(g.includes("drama")||g.includes("story"))return "drama";if(g.includes("comedy")||g.includes("entertain"))return "comedy";if(g.includes("talk")||g.includes("review"))return "review";return "auto";};
+            if(currentPage==="results"){
+              if(selectedResultFolder){
+                const folder=folders.find(f=>f.id===selectedResultFolder)!;
+                const items=completed.filter(j=>category(j.genre)===selectedResultFolder);
+                return <><button className="back-folder" onClick={()=>setSelectedResultFolder(null)}><ArrowLeft size={16}/> Semua folder hasil</button><div className="folder-heading"><span>{folder.icon}</span><div><h3>{folder.name}</h3><p>{folder.desc} · {items.length} video</p></div></div>{items.length===0?<div className="library-empty"><Video size={28}/><strong>Folder ini masih kosong</strong><span>Hasil editing kategori ini akan otomatis masuk ke sini.</span></div>:<div className="library-grid">{items.map(j=><article className="library-card" key={j.id}><div className="library-card-top"><span className="job-pill is-done">Selesai</span><span className="muted tiny">{new Date(j.created_at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"})}</span></div><h3>{j.title||j.projectName}</h3><p className="muted tiny">{j.projectName} · {j.target_duration||"-"} detik</p>{j.outputUrl?<><video className="library-video" controls playsInline preload="metadata" src={j.outputUrl}/><div className="library-actions"><a className="primary-button" href={j.outputUrl} download={j.filename||"video-final.mp4"}><Download size={15}/> Unduh video</a><span className="muted tiny">{j.size_bytes?Math.round(j.size_bytes/1048576)+" MB":""}</span></div></>:<div className="library-warning">Video tercatat selesai, tetapi tautan pemutaran belum tersedia. Tekan Muat ulang.</div>}</article>)}</div>}</>;
+              }
+              return completed.length===0?<div className="library-empty"><Folder size={28}/><strong>Belum ada hasil selesai</strong><span>Setelah AI menyelesaikan editing, video akan tersimpan di folder kategorinya.</span></div>:<div className="folder-grid">{folders.map(folder=>{const count=completed.filter(j=>category(j.genre)===folder.id).length;return <button className="result-folder" key={folder.id} onClick={()=>setSelectedResultFolder(folder.id)}><div className="folder-icon">{folder.icon}<Folder size={25}/></div><div className="folder-copy"><strong>{folder.name}</strong><span>{folder.desc}</span><small>{count} video</small></div><ChevronRight size={18}/></button>})}</div>;
+            }
+            const visible=libraryJobs.filter(j=>currentPage==="projects"||(currentPage==="processing"?["queued","analyzing","rendering","processing","running"].includes(j.status):j.status==="failed"));
+            return visible.length===0?<div className="library-empty"><Video size={28}/><strong>Belum ada proyek di kelompok ini</strong><span>Proyek akan muncul otomatis di sini setelah tersimpan.</span></div>:<div className="library-grid">{visible.map(j=><article className="library-card" key={j.id}><div className="library-card-top"><span className={`job-pill ${j.status==="failed"?"is-failed":"is-running"}`}>{j.status==="failed"?"Gagal":j.status}</span><span className="muted tiny">{new Date(j.created_at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"})}</span></div><h3>{j.title||j.projectName}</h3><p className="muted tiny">{j.projectName} · {j.genre||"Auto"} · {j.target_duration||"-"} detik</p>{j.status==="failed"?<div className="library-warning">{j.error_message||"Proses editing gagal."}</div>:<div className="library-progress"><span>Progres</span><strong>{j.progress||0}%</strong><div><i style={{width:Math.max(0,Math.min(100,j.progress||0))+"%"}}/></div></div>}</article>)}</div>;
+          })()}
         </section>}
         <footer><span>AI VIDEO FACTORY</span><span>Built for mobile-first creation · <a href="https://github.com/Alvanza0904/ai-video-factory" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={12}/></a></span></footer>
       </div>
