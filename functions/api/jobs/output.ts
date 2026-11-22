@@ -50,7 +50,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   headers.set("Content-Type", "video/mp4");
   headers.set("Accept-Ranges", "bytes");
   headers.set("Cache-Control", "private, no-store");
-  headers.set("Content-Disposition", 'inline; filename="ai-video-factory.mp4"');
+  const download = url.searchParams.get("download") === "1";
+  headers.set("Content-Disposition", `${download ? "attachment" : "inline"}; filename="ai-video-factory-${jobId}.mp4"`);
+  headers.set("X-Content-Type-Options", "nosniff");
   if (range) {
     headers.set("Content-Length", String(range.length));
     headers.set("Content-Range", `bytes ${range.offset}-${range.offset + range.length - 1}/${head.size}`);
