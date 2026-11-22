@@ -34,9 +34,9 @@ jobs:
           JOB_ID: ${{ inputs.job_id }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_TOKEN: ${{ github.token }}
-          MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
-          DOWNLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/download
-          OUTPUT_UPLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/output
+          MANIFEST_URL: https://avf-runner-gateway.freftialvanza0904.workers.dev/api/jobs/manifest
+          DOWNLOAD_BASE_URL: https://avf-runner-gateway.freftialvanza0904.workers.dev/api/jobs/download
+          OUTPUT_UPLOAD_BASE_URL: https://avf-runner-gateway.freftialvanza0904.workers.dev/api/jobs/output
           RELINK_API_KEY: ${{ secrets.RELINK_API_KEY }}
           RELINK_BASE_URL: https://api.relink-gateway.biz.id/v1
           RELINK_VISION_MODEL: deepseek-v4.1-flash
@@ -48,8 +48,8 @@ jobs:
           MANIFEST_JSON: ${{ inputs.manifest_json }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_TOKEN: ${{ github.token }}
-          MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
-          FAILURE_REPORT_URL: https://ai-video-factory-43b.pages.dev/api/jobs/failure
+          MANIFEST_URL: https://avf-runner-gateway.freftialvanza0904.workers.dev/api/jobs/manifest
+          FAILURE_REPORT_URL: https://avf-runner-gateway.freftialvanza0904.workers.dev/api/jobs/failure
         run: python3 scripts/report_failure.py
       - name: Upload preview artifact
         if: success()
