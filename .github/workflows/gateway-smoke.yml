@@ -32,3 +32,4 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             "https://avf-runner-gateway.freftialvanza0904.workers.dev/api/jobs/manifest?job_id=$JOB_ID&run_id=$TARGET_RUN_ID")"
           echo "$response" | python -c "import json,sys; d=json.load(sys.stdin); assert d.get('jobId') == '$JOB_ID'; assert len(d.get('assets', [])) > 0; print('Private manifest authorized; source assets:', len(d['assets']))"
+
