@@ -9,7 +9,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const rows = await result.json() as Array<Record<string, unknown>>;
   if (!result.ok || !rows.length) return json({ error: "Job tidak ditemukan." }, 404);
   const job = rows[0];
-  if (job.status !== "completed" && job.status !== "failed") {
+  if (job.status !== "completed" && job.status !== "failed" && job.status !== "cancelled") {
     const failureKey = `users/${user.id}/renders/${jobId}.failure.json`;
     const failureObject = await env.MEDIA_BUCKET.get(failureKey);
     if (failureObject) {
