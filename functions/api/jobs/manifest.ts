@@ -7,9 +7,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const runId = url.searchParams.get("run_id") || "";
   if (!token || !/^\d+$/.test(runId) || !jobId) return json({ error: "Identitas runner tidak lengkap." }, 400);
 
-  const check = await fetch(`https://api.github.com/repos/Alvanza0904/ai-video-factory/actions/runs/${runId}`, {
-    headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "AI-Video-Factory" }
-  });
+  const runUrl = `https://api.github.com/repos/Alvanza0904/ai-video-factory/actions/runs/${runId}`;
+  const headers = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "AI-Video-Factory" };
+  let check = await fetch(runUrl, { headers: { ...headers, Authorization: "Bearer " + token } });
+  // This repository is public. If the workflow-scoped GITHUB_TOKEN is denied by
+  // repository Actions policy, verify the same immutable run metadata anonymously.
+  if (!check.ok) check = await fetch(runUrl, { headers });
   if (!check.ok) return json({ error: "Runner GitHub tidak dapat diverifikasi." }, 403);
   const run = await check.json() as { path?: string; repository?: { full_name?: string } };
   if (run.path !== ".github/workflows/ai-edit.yml" || run.repository?.full_name !== "Alvanza0904/ai-video-factory") return json({ error: "Workflow runner tidak diizinkan." }, 403);
