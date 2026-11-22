@@ -243,6 +243,36 @@ export default function Home() {
     finally { setBusy(false); if(fileRef.current) fileRef.current.value=""; }
   }
 
+  async function cancelJob(targetJobId:string) {
+    if (!session) return;
+    if (!window.confirm("Batalkan proses editing ini? Proses render akan dihentikan dan tidak menghasilkan video final.")) return;
+    try {
+      const response=await authorizedFetch("/api/jobs/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:targetJobId})},session.access_token);
+      const data=await response.json() as {success?:boolean;status?:string;error?:string};
+      if(!response.ok||!data.success) throw new Error(data.error||"Tidak dapat membatalkan proses.");
+      setLibraryJobs(prev=>prev.map(j=>j.id===targetJobId?{...j,status:"cancelled",progress:0,error_message:"Dibatalkan oleh pengguna."}:j));
+      if(jobId===targetJobId){setJobStatus("cancelled");setOutputUrl("");localStorage.removeItem("avf-active-job");}
+      setNotice("Proses editing berhasil dibatalkan.");
+    } catch(e) { setNotice((e as Error).message); }
+  }
+
+  async function cancelAllJobs(activeJobs:LibraryJob[]) {
+    if (!session || !activeJobs.length) return;
+    if (!window.confirm("Batalkan "+activeJobs.length+" proses yang sedang berjalan? Video yang sudah selesai tidak akan terpengaruh.")) return;
+    let cancelled=0; const errors:string[]=[];
+    await Promise.all(activeJobs.map(async j=>{
+      try {
+        const response=await authorizedFetch("/api/jobs/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:j.id})},session.access_token);
+        const data=await response.json() as {success?:boolean;error?:string};
+        if(!response.ok||!data.success) throw new Error(data.error||"Gagal");
+        cancelled++;
+        setLibraryJobs(prev=>prev.map(item=>item.id===j.id?{...item,status:"cancelled",progress:0,error_message:"Dibatalkan oleh pengguna."}:item));
+        if(jobId===j.id){setJobStatus("cancelled");setOutputUrl("");localStorage.removeItem("avf-active-job");}
+      } catch(e) { errors.push(j.title||j.id.slice(0,8)); }
+    }));
+    setNotice(cancelled+" proses berhasil dibatalkan."+ (errors.length?" "+errors.length+" proses belum berhasil dihentikan; muat ulang lalu coba lagi.":""));
+  }
+
   function logout() { localStorage.removeItem("avf-session"); setSession(null); setProjects([]); setAssets([]); setNotice("Kamu sudah keluar."); }
 
   return <main className="shell">
@@ -294,8 +324,10 @@ export default function Home() {
               }
               return completed.length===0?<div className="library-empty"><Folder size={28}/><strong>Belum ada hasil selesai</strong><span>Setelah AI menyelesaikan editing, video akan tersimpan di folder kategorinya.</span></div>:<div className="folder-grid">{folders.map(folder=>{const count=completed.filter(j=>category(j.genre)===folder.id).length;return <button className="result-folder" key={folder.id} onClick={()=>setSelectedResultFolder(folder.id)}><div className="folder-icon">{folder.icon}<Folder size={25}/></div><div className="folder-copy"><strong>{folder.name}</strong><span>{folder.desc}</span><small>{count} video</small></div><ChevronRight size={18}/></button>})}</div>;
             }
-            const visible=libraryJobs.filter(j=>currentPage==="projects"||(currentPage==="processing"?["queued","analyzing","rendering","processing","running"].includes(j.status):j.status==="failed"));
-            return visible.length===0?<div className="library-empty"><Video size={28}/><strong>Belum ada proyek di kelompok ini</strong><span>Proyek akan muncul otomatis di sini setelah tersimpan.</span></div>:<div className="library-grid">{visible.map(j=><article className="library-card" key={j.id}><div className="library-card-top"><span className={`job-pill ${j.status==="failed"?"is-failed":"is-running"}`}>{j.status==="failed"?"Gagal":j.status}</span><span className="muted tiny">{new Date(j.created_at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"})}</span></div><h3>{j.title||j.projectName}</h3><p className="muted tiny">{j.projectName} · {j.genre||"Auto"} · {j.target_duration||"-"} detik</p>{j.status==="failed"?<div className="library-warning">{j.error_message||"Proses editing gagal."}</div>:<div className="library-progress"><span>Progres</span><strong>{j.progress||0}%</strong><div><i style={{width:Math.max(0,Math.min(100,j.progress||0))+"%"}}/></div></div>}</article>)}</div>;
+            const activeStatuses=["queued","analyzing","rendering","processing","running"];
+            const activeJobs=libraryJobs.filter(j=>activeStatuses.includes(j.status));
+            const visible=libraryJobs.filter(j=>currentPage==="projects"||(currentPage==="processing"?activeStatuses.includes(j.status):j.status==="failed"));
+            return <>{currentPage==="processing"&&activeJobs.length>0&&<div className="section-heading"><div><strong>{activeJobs.length} proses aktif</strong><p className="muted tiny">Batalkan proses yang tidak lagi diperlukan.</p></div><button className="secondary-button" onClick={()=>cancelAllJobs(activeJobs)}><X size={15}/> Batalkan semua</button></div>}{visible.length===0?<div className="library-empty"><Video size={28}/><strong>Belum ada proyek di kelompok ini</strong><span>Proyek akan muncul otomatis di sini setelah tersimpan.</span></div>:<div className="library-grid">{visible.map(j=><article className="library-card" key={j.id}><div className="library-card-top"><span className={`job-pill ${j.status==="failed"?"is-failed":"is-running"}`}>{j.status==="failed"?"Gagal":j.status}</span><span className="muted tiny">{new Date(j.created_at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"})}</span></div><h3>{j.title||j.projectName}</h3><p className="muted tiny">{j.projectName} · {j.genre||"Auto"} · {j.target_duration||"-"} detik</p>{j.status==="failed"?<div className="library-warning">{j.error_message||"Proses editing gagal."}</div>:<div className="library-progress"><span>Progres</span><strong>{j.progress||0}%</strong><div><i style={{width:Math.max(0,Math.min(100,j.progress||0))+"%"}}/></div></div>}{currentPage==="processing"&&<button className="secondary-button" style={{marginTop:14,width:"100%"}} onClick={()=>cancelJob(j.id)}><X size={15}/> Batalkan proses ini</button>}</article>)}</div>}</>;
           })()}
         </section>}
         <footer><span>AI VIDEO FACTORY</span><span>Built for mobile-first creation · <a href="https://github.com/Alvanza0904/ai-video-factory" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={12}/></a></span></footer>
