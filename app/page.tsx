@@ -251,7 +251,7 @@ export default function Home() {
       const data=await response.json() as {success?:boolean;status?:string;error?:string};
       if(!response.ok||!data.success) throw new Error(data.error||"Tidak dapat membatalkan proses.");
       setLibraryJobs(prev=>prev.map(j=>j.id===targetJobId?{...j,status:"cancelled",progress:0,error_message:"Dibatalkan oleh pengguna."}:j));
-      if(jobId===targetJobId){setJobStatus("cancelled");setOutputUrl("");localStorage.removeItem("avf-active-job");}
+      if(jobId===targetJobId){setJobStatus("cancelled");setOutputUrl("");setJobId("");localStorage.removeItem("avf-active-job");}
       setNotice("Proses editing berhasil dibatalkan.");
     } catch(e) { setNotice((e as Error).message); }
   }
