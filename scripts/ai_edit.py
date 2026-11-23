@@ -183,9 +183,11 @@ Speech transcripts with source timestamps: {json.dumps(transcripts, ensure_ascii
 
 Important:
 - Use actual asset IDs from Available clips.
-- Scenes must be ordered, cover the target timeline from 0 to approximately {target} seconds, and never exceed each source clip duration.
+- CRITICAL: each uploaded file represents one complete scene. Return exactly one scene per uploaded file, in the exact upload order. Do not split a source file into multiple arbitrary scenes and do not reorder the four source scenes.
+- Preserve each scene's meaningful action and dialogue; trim only genuine dead air or unusable handles. Scenes must cover the target timeline continuously and never exceed each source clip duration.
+- For every scene after the first, deliberately choose transition_in from cut, fade, dissolve, whip, match_cut, or none based on actual visual movement and mood. Do not apply one identical transition everywhere.
 - Captions and every audio_cues.at value use GLOBAL output timeline seconds, not source-clip or scene-local seconds. Only caption words that exist in transcripts; do not invent dialogue.
-- Use the renderer's original SFX asset IDs only: vine_boom_style, bruh_drop, boing, record_scratch, whoosh, engine_rev, sad_trombone. Keep effects sparse and outside important dialogue; set music_strategy to none because no music track is bundled.
+- Plan a sound bridge at suitable scene boundaries: natural ambience/audio continuation, whoosh timed to a visual transition, or a restrained impact for a reveal. Use only the renderer's original SFX asset IDs: vine_boom_style, bruh_drop, boing, record_scratch, whoosh, engine_rev, sad_trombone. Keep effects sparse and outside important dialogue. Set music_strategy to none because no licensed music track is bundled.
 - Keep original spoken audio. Never add unsupported marketing claims.
 - Aim for a strong 1–2 second opening hook and a coherent ending.
 - The only allowed output is a single JSON object. Do not wrap it in Markdown.
