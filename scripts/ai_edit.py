@@ -201,18 +201,47 @@ Important:
         "max_tokens": 12000,
         "response_format": {"type": "json_object"}
     }
-    response = api_json(BASE_URL + "/chat/completions", payload)
-    choices = response.get("choices") or []
-    raw = (choices[0].get("message") or {}).get("content", "") if choices else ""
-    if not isinstance(raw, str) or not raw.strip():
-        raise RuntimeError("The AI Director returned an empty response.")
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", raw, re.S)
-        if not match:
-            raise RuntimeError("The AI Director did not return valid JSON.")
-        return json.loads(match.group(0))
+    def extract_json(response: dict) -> dict:
+        choices = response.get("choices") or []
+        if not choices:
+            raise RuntimeError("The AI Director response contained no choices.")
+        message = choices[0].get("message") or {}
+        raw = message.get("content", "")
+        if isinstance(raw, list):
+            raw = "\\n".join(str(part.get("text", "")) for part in raw if isinstance(part, dict))
+        if not isinstance(raw, str) or not raw.strip():
+            raise RuntimeError("The AI Director returned an empty response.")
+        decoder = json.JSONDecoder()
+        # Accept a clean object or harmless prose/fences around one complete object.
+        for index, char in enumerate(raw):
+            if char != "{":
+                continue
+            try:
+                value, _ = decoder.raw_decode(raw[index:])
+                if isinstance(value, dict):
+                    return value
+            except json.JSONDecodeError:
+                continue
+        finish = choices[0].get("finish_reason", "unknown")
+        raise ValueError(f"AI Director JSON parse failed (finish_reason={finish}, chars={len(raw)}). Preview: {raw[:500]!r}")
+
+    last_error = None
+    for attempt in range(2):
+        try:
+            response = api_json(BASE_URL + "/chat/completions", payload)
+            return extract_json(response)
+        except (ValueError, RuntimeError, KeyError, TypeError) as exc:
+            last_error = exc
+            if attempt == 0:
+                print(f"AI Director returned malformed/incomplete JSON; retrying once with stricter output instructions. Detail: {exc}")
+                retry_payload = dict(payload)
+                retry_payload["max_tokens"] = 16000
+                retry_payload["messages"] = list(payload["messages"]) + [{
+                    "role": "user",
+                    "content": "Your previous response was not valid complete JSON. Return ONLY one complete JSON object matching the supplied schema. Do not use Markdown, comments, trailing commas, or omit required fields. Ensure every string is properly escaped and all arrays/objects are closed."
+                }]
+                payload = retry_payload
+    raise RuntimeError(f"AI Director failed after one retry: {last_error}")
 
 
 def validate_blueprint(blueprint: dict, assets: list[dict], target: int) -> None:
