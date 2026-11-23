@@ -281,22 +281,24 @@ def ensure_sound_design(blueprint: dict) -> None:
     if len(existing) >= 2:
         return
     genre = blueprint.get("classification", {}).get("primary_genre", "other")
-    candidates = scenes[1:-1] if len(scenes) > 2 else scenes[1:]
-    wanted = 3 if genre in ("comedy", "two_character", "pov") else 2
-    choices = (["boing", "record_scratch", "bruh_drop"] if genre in ("comedy", "two_character")
-               else ["whoosh", "engine_rev", "vine_boom_style"])
+    candidates = scenes[1:-1] if len(scenes) > 2 else scenes
+    # Do not leave the soundtrack silent merely because the model omitted cues.
+    wanted = min(4, max(2, round(len(scenes) / 3)))
+    choices = (["boing", "record_scratch", "bruh_drop", "whoosh"]
+               if genre in ("comedy", "two_character", "pov")
+               else ["whoosh", "engine_rev", "vine_boom_style", "impact"])
     for index, scene in enumerate(candidates):
         if len(existing) >= wanted:
             break
-        at = float(scene["timeline_start"]) + 0.08
-        if any(abs(float(c.get("at", -100)) - at) < 1.2 for item in scenes for c in item.get("audio_cues", [])):
+        at = float(scene["timeline_start"]) + min(0.22, max(0.08, (float(scene["timeline_end"]) - float(scene["timeline_start"])) * 0.12))
+        if any(abs(float(c.get("at", -100)) - at) < 0.8 for item in scenes for c in item.get("audio_cues", [])):
             continue
         asset_id = choices[index % len(choices)]
-        kind = "comedy" if asset_id in ("boing", "record_scratch", "bruh_drop") else ("engine" if asset_id == "engine_rev" else ("impact" if asset_id == "vine_boom_style" else "whoosh"))
+        kind = "comedy" if asset_id in ("boing", "record_scratch", "bruh_drop") else ("engine" if asset_id == "engine_rev" else ("impact" if asset_id in ("vine_boom_style", "impact") else "whoosh"))
         scene.setdefault("audio_cues", []).append({"kind": kind, "asset_id": asset_id, "at": round(at, 2),
-            "duration": 0.75, "gain_db": -13.0})
+            "duration": 0.85, "gain_db": -5.5})
         existing.append(scene["audio_cues"][-1])
-    print(f"Sound design: {len(existing)} original SFX cues scheduled.")
+    print(f"Sound design: {len(existing)} original SFX cues scheduled (target {wanted}).")
 
 
 def make_srt(blueprint: dict) -> Path:
@@ -421,7 +423,7 @@ def build_audio_mix(blueprint: dict, source_video: Path, output: Path, subtitle_
             if at >= float(blueprint["output"]["duration_seconds"]):
                 continue
             duration = max(0.12, min(float(cue.get("duration", 1.0)), 2.0))
-            gain_db = min(-10.0, max(-24.0, float(cue.get("gain_db", -14))))
+            gain_db = min(-3.0, max(-12.0, float(cue.get("gain_db", -5.5))))
             cues.append((sound, at, duration, gain_db))
     cues = sorted(cues, key=lambda item: item[1])[:14]
 
@@ -442,8 +444,8 @@ def build_audio_mix(blueprint: dict, source_video: Path, output: Path, subtitle_
                 f"volume={volume:.5f},adelay={delay_ms}|{delay_ms}[{label}]"
             )
             filters.append(
-                f"[{label}][0:a]sidechaincompress=threshold=0.025:ratio=8:"
-                f"attack=12:release=260[{ducked}]"
+                f"[{label}][0:a]sidechaincompress=threshold=0.12:ratio=2.2:"
+                f"attack=8:release=180[{ducked}]"
             )
             mix_labels.append(f"[{ducked}]")
         filters.append(
@@ -488,7 +490,9 @@ def render(blueprint: dict, assets: list[dict]) -> None:
         }.get(profile, "null")
         # Consistent, restrained premium grade on every scene; AI profile adds a small mood adjustment.
         base_grade = "eq=contrast=1.07:saturation=1.06:gamma=1.02:brightness=0.004,curves=all='0/0.015 0.25/0.23 0.75/0.79 1/0.985',colorbalance=rs=0.012:gs=0.004:bs=-0.008"
-        video_filters = f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,{base_grade},{color},setpts=PTS/{speed:.6f},format=yuv420p"
+        # Subtle, continuous camera push-in creates real motion on otherwise static shots.
+        motion = "zoompan=z='min(zoom+0.00032,1.035)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30"
+        video_filters = f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,{base_grade},{color},{motion},vignette=PI/5,unsharp=5:5:0.35:3:3:0.0,setpts=PTS/{speed:.6f},format=yuv420p"
         part = WORK / f"scene-{index:02d}.mp4"
         has_audio = subprocess.run([
             "ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries",
