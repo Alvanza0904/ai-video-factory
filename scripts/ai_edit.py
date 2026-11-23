@@ -290,7 +290,9 @@ def ensure_sound_design(blueprint: dict) -> None:
     for index, scene in enumerate(candidates):
         if len(existing) >= wanted:
             break
-        at = float(scene["timeline_start"]) + min(0.22, max(0.08, (float(scene["timeline_end"]) - float(scene["timeline_start"])) * 0.12))
+        scene_start = float(scene.get("timeline_start", 0))
+        scene_end = float(scene.get("timeline_end", scene_start + 1.0))
+        at = scene_start + min(0.22, max(0.08, (scene_end - scene_start) * 0.12))
         if any(abs(float(c.get("at", -100)) - at) < 0.8 for item in scenes for c in item.get("audio_cues", [])):
             continue
         asset_id = choices[index % len(choices)]
