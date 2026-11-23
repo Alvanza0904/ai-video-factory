@@ -26,7 +26,14 @@ VISION_MODEL = os.environ.get("RELINK_VISION_MODEL", "deepseek-v4.1-flash")
 
 
 def run(command: list[str], *, capture: bool = True) -> str:
-    result = subprocess.run(command, check=True, text=True, capture_output=capture)
+    result = subprocess.run(command, check=False, text=True, capture_output=True)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "No FFmpeg diagnostic output").strip()
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}: "
+            f"{' '.join(str(part) for part in command[:8])} ...\\n"
+            f"Technical detail: {detail[-7000:]}"
+        )
     return result.stdout.strip() if capture else ""
 
 
@@ -553,8 +560,10 @@ def render(blueprint: dict, assets: list[dict]) -> None:
             cmd += ["-i", str(part)]
         filters = []
         first_duration = float(blueprint["scenes"][0]["timeline_end"]) - float(blueprint["scenes"][0]["timeline_start"])
-        filters.append("[0:v]settb=AVTB,setpts=PTS-STARTPTS[v0]")
-        filters.append("[0:a]asetpts=PTS-STARTPTS[a0]")
+        # Re-normalize AFTER speed changes: xfade requires identical CFR, size,
+        # pixel format and timebase on every input, even for variable-rate phone clips.
+        filters.append("[0:v]fps=30,scale=1080:1920,setsar=1,format=yuv420p,settb=AVTB,setpts=PTS-STARTPTS[v0]")
+        filters.append("[0:a]aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asetpts=PTS-STARTPTS[a0]")
         composite_duration = first_duration
         actual_starts = [0.0]
         for index in range(1, len(normalized)):
@@ -564,10 +573,10 @@ def render(blueprint: dict, assets: list[dict]) -> None:
             transition_name = transition_map.get(scene.get("transition_in", "cut"), "fade")
             offset = max(0.0, composite_duration - trans)
             filters.append(
-                f"[{index}:v]settb=AVTB,setpts=PTS-STARTPTS[v{index}]"
+                f"[{index}:v]fps=30,scale=1080:1920,setsar=1,format=yuv420p,settb=AVTB,setpts=PTS-STARTPTS[v{index}]"
             )
             filters.append(
-                f"[{index}:a]asetpts=PTS-STARTPTS[a{index}]"
+                f"[{index}:a]aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asetpts=PTS-STARTPTS[a{index}]"
             )
             filters.append(
                 f"[v{index-1}][v{index}]xfade=transition={transition_name}:duration={trans:.3f}:offset={offset:.3f}[vx{index}]"
