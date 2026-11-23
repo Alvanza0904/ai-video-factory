@@ -33,5 +33,7 @@ jobs:
         run: python3 -m py_compile scripts/*.py
       - name: Test generated sound library and audio mixing
         run: python3 scripts/audio_smoke_test.py
+      - name: Test multi-clip transition normalization
+        run: python3 scripts/xfade_smoke_test.py
       - name: Build
         run: npm run build
