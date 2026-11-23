@@ -249,6 +249,11 @@ def validate_blueprint(blueprint: dict, assets: list[dict], target: int) -> None
     schema = json.loads(Path("schemas/editing-blueprint.v1.schema.json").read_text())
     validate(blueprint, schema)
     valid_ids = {a["id"] for a in assets}
+    scenes_in_order = sorted(blueprint["scenes"], key=lambda item: float(item["timeline_start"]))
+    expected_order = [a["id"] for a in assets]
+    actual_order = [scene["asset_id"] for scene in scenes_in_order]
+    if actual_order != expected_order:
+        raise ValueError("Each uploaded file is one scene: preserve the original upload order and use exactly one scene per source clip.")
     for scene in blueprint["scenes"]:
         if scene["asset_id"] not in valid_ids:
             raise ValueError("AI blueprint referenced an unknown source clip.")
@@ -300,7 +305,22 @@ def ensure_sound_design(blueprint: dict) -> None:
         scene.setdefault("audio_cues", []).append({"kind": kind, "asset_id": asset_id, "at": round(at, 2),
             "duration": 0.85, "gain_db": -5.5})
         existing.append(scene["audio_cues"][-1])
-    print(f"Sound design: {len(existing)} original SFX cues scheduled (target {wanted}).")
+    # Every scene boundary gets a transition-specific whoosh unless the director already placed one.
+    for index, scene in enumerate(scenes):
+        if index == 0:
+            continue
+        transition = scene.get("transition_in", "cut")
+        if transition in ("fade", "dissolve", "whip") and not any(
+            str(c.get("kind", "")).lower() == "whoosh" and
+            abs(float(c.get("at", -100)) - float(scene["timeline_start"])) < 0.7
+            for item in scenes for c in item.get("audio_cues", [])
+        ):
+            scene.setdefault("audio_cues", []).append({
+                "kind": "whoosh", "asset_id": "whoosh",
+                "at": round(max(0.0, float(scene["timeline_start"]) - 0.12), 2),
+                "duration": 0.55, "gain_db": -6.0
+            })
+    print(f"Sound design: {len([cue for item in scenes for cue in item.get('audio_cues', [])])} original SFX cues scheduled, including scene transitions.")
 
 
 def make_srt(blueprint: dict) -> Path:
@@ -472,6 +492,13 @@ def build_audio_mix(blueprint: dict, source_video: Path, output: Path, subtitle_
 def render(blueprint: dict, assets: list[dict]) -> None:
     asset_map = {a["id"]: a for a in assets}
     normalized = []
+    transition_seconds = min(0.26, 0.85 / max(1, len(blueprint["scenes"]) - 1))
+    transition_seconds = max(0.08, transition_seconds)
+    transition_map = {
+        "fade": "fade", "dissolve": "dissolve",
+        "whip": "smoothleft", "cut": "fade",
+        "match_cut": "fade", "none": "fade"
+    }
     for index, scene in enumerate(blueprint["scenes"], start=1):
         asset = asset_map[scene["asset_id"]]
         source_duration = float(scene["source_out"]) - float(scene["source_in"])
@@ -514,13 +541,62 @@ def render(blueprint: dict, assets: list[dict]) -> None:
         run(cmd)
         normalized.append(part)
 
-    concat_file = WORK / "concat.txt"
-    concat_file.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in normalized), encoding="utf-8")
-    silent_concat = WORK / "joined.mp4"
-    run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(silent_concat)])
-    captions = make_srt(blueprint)
+    # Blend adjacent scenes with matching video and audio transitions instead of a raw file concat.
+    if len(normalized) == 1:
+        joined = normalized[0]
+        adjusted = json.loads(json.dumps(blueprint))
+    else:
+        cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
+        for part in normalized:
+            cmd += ["-i", str(part)]
+        filters = []
+        first_duration = float(blueprint["scenes"][0]["timeline_end"]) - float(blueprint["scenes"][0]["timeline_start"])
+        filters.append("[0:v]settb=AVTB,setpts=PTS-STARTPTS[v0]")
+        filters.append("[0:a]asetpts=PTS-STARTPTS[a0]")
+        composite_duration = first_duration
+        actual_starts = [0.0]
+        for index in range(1, len(normalized)):
+            scene = blueprint["scenes"][index]
+            duration = float(scene["timeline_end"]) - float(scene["timeline_start"])
+            trans = transition_seconds
+            transition_name = transition_map.get(scene.get("transition_in", "cut"), "fade")
+            offset = max(0.0, composite_duration - trans)
+            filters.append(
+                f"[{index}:v]settb=AVTB,setpts=PTS-STARTPTS[v{index}]"
+            )
+            filters.append(
+                f"[{index}:a]asetpts=PTS-STARTPTS[a{index}]"
+            )
+            filters.append(
+                f"[v{index-1}][v{index}]xfade=transition={transition_name}:duration={trans:.3f}:offset={offset:.3f}[vx{index}]"
+            )
+            filters.append(
+                f"[a{index-1}][a{index}]acrossfade=d={trans:.3f}:c1=tri:c2=tri[ax{index}]"
+            )
+            actual_starts.append(offset)
+            composite_duration = composite_duration + duration - trans
+        last = len(normalized) - 1
+        joined = WORK / "joined.mp4"
+        cmd += ["-filter_complex", ";".join(filters), "-map", f"[vx{last}]", "-map", f"[ax{last}]",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(joined)]
+        run(cmd)
+        adjusted = json.loads(json.dumps(blueprint))
+        for index, scene in enumerate(adjusted["scenes"]):
+            shift = actual_starts[index] - float(scene["timeline_start"])
+            scene["timeline_start"] = actual_starts[index]
+            scene["timeline_end"] = actual_starts[index] + (
+                float(blueprint["scenes"][index]["timeline_end"]) -
+                float(blueprint["scenes"][index]["timeline_start"])
+            )
+            for caption in scene.get("captions", []):
+                caption["start"] = max(0.0, float(caption["start"]) + shift)
+                caption["end"] = max(caption["start"] + 0.05, float(caption["end"]) + shift)
+            for cue in scene.get("audio_cues", []):
+                cue["at"] = max(0.0, float(cue["at"]) + shift)
+    captions = make_srt(adjusted)
     subtitle_filter = "subtitles=" + str(captions.resolve()).replace("\\", "/").replace(":", "\\:")
-    build_audio_mix(blueprint, silent_concat, OUTPUT, subtitle_filter)
+    build_audio_mix(adjusted, joined, OUTPUT, subtitle_filter)
 
 
 def upload_output() -> None:
