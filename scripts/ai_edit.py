@@ -578,11 +578,15 @@ def render(blueprint: dict, assets: list[dict]) -> None:
             filters.append(
                 f"[{index}:a]aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asetpts=PTS-STARTPTS[a{index}]"
             )
+            # Chain each new transition from the previous composite output,
+            # not from the previous raw scene (which leaves xfade outputs unconnected).
+            previous_video = "[v0]" if index == 1 else f"[vx{index-1}]"
+            previous_audio = "[a0]" if index == 1 else f"[ax{index-1}]"
             filters.append(
-                f"[v{index-1}][v{index}]xfade=transition={transition_name}:duration={trans:.3f}:offset={offset:.3f}[vx{index}]"
+                f"{previous_video}[v{index}]xfade=transition={transition_name}:duration={trans:.3f}:offset={offset:.3f}[vx{index}]"
             )
             filters.append(
-                f"[a{index-1}][a{index}]acrossfade=d={trans:.3f}:c1=tri:c2=tri[ax{index}]"
+                f"{previous_audio}[a{index}]acrossfade=d={trans:.3f}:c1=tri:c2=tri[ax{index}]"
             )
             actual_starts.append(offset)
             composite_duration = composite_duration + duration - trans
