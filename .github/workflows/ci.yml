@@ -29,8 +29,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
+      - name: Install Python dependencies for animation tests
+        run: python -m pip install --upgrade pip pillow
       - name: Validate Python render and AI worker syntax
         run: python3 -m py_compile scripts/*.py
+      - name: Test animated education scene library
+        run: python3 scripts/education_smoke_test.py
       - name: Test generated sound library and audio mixing
         run: python3 scripts/audio_smoke_test.py
       - name: Test multi-clip transition normalization
