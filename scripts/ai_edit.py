@@ -349,10 +349,15 @@ def make_srt(blueprint: dict) -> Path:
         seconds, ms = divmod(ms, 1000)
         return f"{hours:02}:{minutes:02}:{seconds:02},{ms:03}"
     path = WORK / "captions.srt"
-    path.write_text("\n\n".join(
-        f"{i}\n{stamp(start)} --> {stamp(end)}\n{text}"
-        for i, (start, end, text) in enumerate(entries, start=1)
-    ), encoding="utf-8")
+    if entries:
+        content = "\n\n".join(
+            f"{i}\n{stamp(start)} --> {stamp(end)}\n{text}"
+            for i, (start, end, text) in enumerate(entries, start=1)
+        )
+    else:
+        # libass rejects an empty SRT file; keep no-caption transitions renderable.
+        content = "1\n00:00:00,000 --> 00:00:00,050\n \n"
+    path.write_text(content, encoding="utf-8")
     return path
 
 
