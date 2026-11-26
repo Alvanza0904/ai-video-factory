@@ -72,7 +72,6 @@ export default function EducationStudio() {
         setStatus(data.job.status); setProgress(data.job.progress||0);
         if(data.job.status==="completed"&&data.outputUrl){
           setOutputUrl(data.outputUrl);setMessage("Video edukasi selesai dibuat. Periksa hasilnya sebelum dipublikasikan.");
-          localStorage.removeItem("avf-education-job");
         }else if(data.job.status==="failed"){
           setMessage(data.job.error_message||"Proses gagal. Coba lagi dengan topik lain.");
           localStorage.removeItem("avf-education-job");
