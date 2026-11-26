@@ -9,6 +9,7 @@ WORK = ROOT / "education-work"
 OUT = ROOT / "ai-video-factory-final.mp4"
 W, H, FPS = 540, 960, 15
 MODEL = Path(os.environ.get("PIPER_MODEL", "models/id_ID-news_tts-medium.onnx"))
+ACTIVE_BRAND = "JAECOO"
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
@@ -157,7 +158,7 @@ def draw_frame(scene, idx, total):
     d.ellipse((-150,210,170,530),fill="#172C3C")
     d.ellipse((365,570,680,885),fill="#142B3A")
     rr(d,(28,34,W-28,79),18,"#1B2A37")
-    d.text((48,47),"AUTO EDUCATION  /  60 SEC LEARNING",font=font(15,True),fill=accent)
+    d.text((48,47),"AUTO EDUCATION  /  EXPLAINED",font=font(15,True),fill=accent)
     centered(d,scene["title"],112,font(29,True),white,470)
     v=scene["visual"]
     cy=470
@@ -200,7 +201,7 @@ def draw_frame(scene, idx, total):
     # Kinetic accent: animated progress line and scene marker.
     d.rounded_rectangle((45,865,495,876),radius=5,fill="#314353")
     d.rounded_rectangle((45,865,45+int(450*p),876),radius=5,fill=accent)
-    d.text((46,895),"OMODA  ×  JAECOO  •  PALEMBANG",font=font(14,True),fill=muted)
+    d.text((46,895),f"{ACTIVE_BRAND}  •  PALEMBANG",font=font(14,True),fill=muted)
     return img
 
 def make_subtitles(scenes, voice_duration):
@@ -237,8 +238,10 @@ def piper_voice(text):
     return output
 
 def main():
+    global ACTIVE_BRAND
     WORK.mkdir(exist_ok=True)
     manifest=fetch_manifest()
+    ACTIVE_BRAND=manifest["brand"]
     topic=manifest["topic"]
     brand=manifest["brand"]
     duration=int(manifest["duration"])
@@ -273,7 +276,7 @@ def main():
     silent=WORK/"silent.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),
          "-c","copy","-movflags","+faststart",str(silent)])
-    music_expr=f"sine=frequency=196:duration={total_duration:.2f}"
+    music_expr=f"aevalsrc=0.018*sin(2*PI*220*t)+0.012*sin(2*PI*277.18*t)+0.008*sin(2*PI*329.63*t):s=48000:d={total_duration:.2f}"
     subtitle_arg=str(subs.resolve()).replace("\\","/").replace(":","\\:")
     vf=f"subtitles='{subtitle_arg}':force_style='FontName=DejaVu Sans,FontSize=15,Bold=1,Outline=2,Shadow=1,Alignment=2,MarginV=150,PrimaryColour=&H00FFFFFF,OutlineColour=&H90081720'"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio),
