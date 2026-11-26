@@ -111,6 +111,24 @@ def centered(draw, text, y, fnt, fill, maxw=470):
         y += fnt.size + 10
     return y
 
+def caption_lines(text, fnt, max_width=420):
+    probe = ImageDraw.Draw(Image.new("RGB",(1,1)))
+    words, lines, line = text.split(), [], ""
+    for word in words:
+        test = (line + " " + word).strip()
+        if probe.textbbox((0,0), test, font=fnt)[2] <= max_width:
+            line = test
+        else:
+            if line: lines.append(line)
+            line = word
+    if line: lines.append(line)
+    if len(lines) > 2:
+        last = lines[1]
+        while last and probe.textbbox((0,0), last + "…", font=fnt)[2] > max_width:
+            last = last[:-1]
+        lines = [lines[0], last.rstrip() + "…"]
+    return lines[:2]
+
 def rr(draw, box, radius, fill, outline=None, width=2):
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
 
@@ -175,7 +193,7 @@ def draw_frame(scene, idx, total):
         draw_battery(d,270,450,.25+.7*p,accent)
         if v=="temperature":
             d.arc((180,650,360,830),190,350,fill="#FF9B72",width=14)
-            centered(d,"SUHU • PENGGUNAAN • PERAWATAN",770,font(15,True),white,440)
+            centered(d,"SUHU • PENGGUNAAN • PERAWATAN",700,font(15,True),white,440)
         elif v=="charging":
             d.line((270,560,270,690),fill=cyan,width=9)
             d.polygon([(270,690),(252,660),(288,660)],fill=cyan)
@@ -184,11 +202,11 @@ def draw_frame(scene, idx, total):
         d.ellipse((190,330,350,490),outline=cyan,width=9)
         d.arc((170,310,370,510),int(40+p*200),int(260+p*200),fill=accent,width=12)
         d.polygon([(350,380),(370,400),(340,405)],fill=accent)
-        centered(d,{"motor":"MOTOR LISTRIK","energy":"ENERGI → GERAK","ac":"ARUS AC","dc":"ARUS DC","system":"SISTEM TERHUBUNG","parts":"KOMPONEN UTAMA"}[v],760,font(20,True),white,460)
+        centered(d,{"motor":"MOTOR LISTRIK","energy":"ENERGI → GERAK","ac":"ARUS AC","dc":"ARUS DC","system":"SISTEM TERHUBUNG","parts":"KOMPONEN UTAMA"}[v],700,font(20,True),white,460)
     elif v=="question":
         draw_person(d,270,470,p)
-        rr(d,(60,690,480,790),22,"#233A4B",outline=cyan)
-        centered(d,"YUK, KITA PELAJARI!",720,font(21,True),white,380)
+        rr(d,(60,660,480,735),22,"#233A4B",outline=cyan)
+        centered(d,"YUK, KITA PELAJARI!",680,font(19,True),white,380)
     elif v=="checklist":
         for j,label in enumerate(("KENALI TEKNOLOGINYA","CEK SPESIFIKASI","PAHAMI KEBUTUHAN")):
             y=340+j*115
@@ -198,6 +216,14 @@ def draw_frame(scene, idx, total):
             d.text((140,y+27),label,font=font(16,True),fill=white)
     else:
         draw_person(d,270,450,p)
+    # Short, readable two-line captions stay in a dedicated lower-third panel.
+    rr(d,(34,748,506,850),20,"#142535",outline="#3D566A",width=2)
+    cap=caption_lines(scene.get("narration",""),font(17,True),420)
+    line_y=766 if len(cap)==2 else 785
+    for line in cap:
+        box=d.textbbox((0,0),line,font=font(17,True))
+        d.text(((W-(box[2]-box[0]))/2,line_y),line,font=font(17,True),fill=white)
+        line_y+=27
     # Kinetic accent: animated progress line and scene marker.
     d.rounded_rectangle((45,865,495,876),radius=5,fill="#314353")
     d.rounded_rectangle((45,865,45+int(450*p),876),radius=5,fill=accent)
@@ -280,8 +306,7 @@ def main():
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),
          "-c","copy","-movflags","+faststart",str(silent)])
     music_expr=f"aevalsrc=0.018*sin(2*PI*220*t)+0.012*sin(2*PI*277.18*t)+0.008*sin(2*PI*329.63*t):s=48000:d={total_duration:.2f}"
-    subtitle_arg=str(subs.resolve()).replace("\\","/").replace(":","\\:")
-    vf=f"subtitles='{subtitle_arg}':force_style='FontName=DejaVu Sans,FontSize=15,Bold=1,Outline=2,Shadow=1,Alignment=2,MarginV=150,PrimaryColour=&H00FFFFFF,OutlineColour=&H90081720'"
+    vf="null"  # Captions are burned into each animated scene at a controlled size.
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio),
          "-f","lavfi","-i",music_expr,"-filter_complex",
          "[1:a]volume=1.0[voice];[2:a]lowpass=f=600,volume=0.018[bed];[voice][bed]amix=inputs=2:duration=first:dropout_transition=1,loudnorm=I=-16:TP=-1.5:LRA=11[a]",
