@@ -50,9 +50,9 @@ jobs:
         env:
           JOB_ID: ${{ inputs.job_id }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          MANIFEST_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/manifest
-          OUTPUT_UPLOAD_BASE_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/output
-          FAILURE_REPORT_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/failure
+          MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
+          OUTPUT_UPLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/output
+          FAILURE_REPORT_URL: https://ai-video-factory-43b.pages.dev/api/jobs/failure
           PIPER_MODEL: models/id_ID-news_tts-medium.onnx
         run: python3 scripts/education_animation.py
       - name: Report failure
@@ -60,8 +60,8 @@ jobs:
         env:
           JOB_ID: ${{ inputs.job_id }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          MANIFEST_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/manifest
-          FAILURE_REPORT_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/failure
+          MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
+          FAILURE_REPORT_URL: https://ai-video-factory-43b.pages.dev/api/jobs/failure
         run: python3 scripts/report_failure.py
       - name: Keep a short-lived backup artifact
         if: success()
