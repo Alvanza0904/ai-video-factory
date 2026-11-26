@@ -240,7 +240,10 @@ def piper_voice(text):
 def main():
     global ACTIVE_BRAND
     WORK.mkdir(exist_ok=True)
-    manifest=fetch_manifest()
+    if os.environ.get("SMOKE_TEST") == "1":
+        manifest={"jobId":"smoke-test","userId":"smoke-test","expires":"0","signature":"0","brand":"JAECOO","topic":"regenerative braking","duration":30}
+    else:
+        manifest=fetch_manifest()
     ACTIVE_BRAND=manifest["brand"]
     topic=manifest["topic"]
     brand=manifest["brand"]
@@ -295,6 +298,9 @@ def main():
         "style":"2D explainer + cartoon + motion graphics","voice":"Piper Indonesian news medium",
         "scenes":scenes}
     (WORK/"blueprint.json").write_text(json.dumps(blueprint,ensure_ascii=False,indent=2),encoding="utf-8")
+    if os.environ.get("SMOKE_TEST") == "1":
+        print(f"SMOKE PASS: rendered {final['format']['duration']}s education video ({OUT.stat().st_size} bytes).",flush=True)
+        return
     params=urllib.parse.urlencode({"job_id":manifest["jobId"],"user_id":manifest["userId"],
         "expires":manifest["expires"],"signature":manifest["signature"],"run_id":os.environ["GITHUB_RUN_ID"]})
     req=urllib.request.Request(os.environ["OUTPUT_UPLOAD_BASE_URL"]+"?"+params,data=OUT.read_bytes(),
