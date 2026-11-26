@@ -1,0 +1,72 @@
+name: AI Animated Education Factory
+run-name: Education Animation - ${{ inputs.job_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Education video job UUID"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: education-animation-${{ inputs.job_id }}
+  cancel-in-progress: false
+
+jobs:
+  render-education:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Obtain short-lived runner identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(curl --fail --silent --show-error -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=ai-video-factory" | python -c "import json,sys; print(json.load(sys.stdin)['value'])")"
+          echo "OIDC_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Install free rendering tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install --upgrade pip
+          pip install --only-binary=:all: pillow piper-tts
+      - name: Download Indonesian Piper voice
+        run: |
+          mkdir -p models
+          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news/medium/id_ID-news_tts-medium.onnx" -o models/id_ID-news_tts-medium.onnx
+          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news/medium/id_ID-news_tts-medium.onnx.json" -o models/id_ID-news_tts-medium.onnx.json
+      - name: Generate narration, 2D animation and final MP4
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          MANIFEST_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/manifest
+          OUTPUT_UPLOAD_BASE_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/output
+          FAILURE_REPORT_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/failure
+          PIPER_MODEL: models/id_ID-news_tts-medium.onnx
+        run: python3 scripts/education_animation.py
+      - name: Report failure
+        if: failure()
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          MANIFEST_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/manifest
+          FAILURE_REPORT_URL: https://avf-runner.omodajaecoopalembang.web.id/api/jobs/failure
+        run: python3 scripts/report_failure.py
+      - name: Keep a short-lived backup artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: education-animation-${{ inputs.job_id }}
+          path: ai-video-factory-final.mp4
+          retention-days: 3
