@@ -30,4 +30,4 @@ Custom topics are accepted by the form, but the current deterministic script fal
 ## Limits
 - GitHub Actions minutes, storage, Supabase, Cloudflare and Hugging Face availability are subject to their current free-tier limits.
 - The first version uses deterministic scripts and vector illustration templates. It is not yet a fully generative LLM director or a character lip-sync engine.
-- Check Piper model and all asset licenses before commercial use.
+- The selected Piper Indonesian voice is listed as MIT in the model repository, but its model card points to a dataset whose license is 'see source URL'. Treat this voice as experimental until its dataset rights are confirmed for commercial marketing use. Check every model and asset license before publication.
