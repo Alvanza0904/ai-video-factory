@@ -44,8 +44,8 @@ jobs:
       - name: Download Indonesian Piper voice
         run: |
           mkdir -p models
-          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news/medium/id_ID-news_tts-medium.onnx" -o models/id_ID-news_tts-medium.onnx
-          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news/medium/id_ID-news_tts-medium.onnx.json" -o models/id_ID-news_tts-medium.onnx.json
+          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx" -o models/id_ID-news_tts-medium.onnx
+          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx.json" -o models/id_ID-news_tts-medium.onnx.json
       - name: Generate narration, 2D animation and final MP4
         env:
           JOB_ID: ${{ inputs.job_id }}
