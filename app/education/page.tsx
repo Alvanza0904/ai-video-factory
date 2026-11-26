@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Clapperboard, Download, Film, LoaderCircle, Play, Sparkles, Volume2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Clapperboard, Download, Film, LoaderCircle, Sparkles, Volume2 } from "lucide-react";
 
 const API = "https://sdmnhhgcenhzfnvzwyzo.supabase.co";
 const ANON = "sb_publishable_uxSrstD_fl3oJS1BkfvtkA__KzQtI7A";
@@ -102,7 +103,7 @@ export default function EducationStudio() {
   }
 
   return <main className="edu-shell">
-    <header className="edu-top"><a href="/" className="back"><ArrowLeft size={17}/> Dashboard</a><div className="logo"><span><Clapperboard size={19}/></span><div><b>ANIMATED EDUCATION</b><small>OMODA × JAECOO PALEMBANG</small></div></div><div className="signed">{session?"Workspace aktif":"Belum masuk"}</div></header>
+    <header className="edu-top"><Link href="/" className="back"><ArrowLeft size={17}/> Dashboard</Link><div className="logo"><span><Clapperboard size={19}/></span><div><b>ANIMATED EDUCATION</b><small>OMODA × JAECOO PALEMBANG</small></div></div><div className="signed">{session?"Workspace aktif":"Belum masuk"}</div></header>
     <div className="edu-content">
       <section className="hero"><div className="eyebrow"><Sparkles size={14}/> AUTOMATED EXPLAINER VIDEO</div><h1>Topik jadi video.<br/><em>Tanpa rekam, tanpa edit.</em></h1><p>Buat video edukasi otomotif dengan naskah, suara narator Bahasa Indonesia, ilustrasi bergerak, motion graphics, dan subtitle secara otomatis.</p></section>
       <div className="layout">
@@ -121,7 +122,7 @@ export default function EducationStudio() {
           <div className="style-note"><Film size={17}/><div><b>Gaya visual otomatis</b><span>Campuran 2D explainer, cartoon, dan motion graphics.</span></div></div>
           <div className="style-note"><Volume2 size={17}/><div><b>Narator Bahasa Indonesia</b><span>Suara sintetis natural, ramah, dan energik.</span></div></div>
           <button className="generate" disabled={busy||!session} onClick={createVideo}>{busy?<LoaderCircle className="spin" size={18}/>:<Sparkles size={18}/>} {busy?"Menyiapkan…":"Generate Video Otomatis"}</button>
-          {!session&&<p className="login-note">Masuk di <a href="/">dashboard utama</a> terlebih dahulu. Sesi login akan digunakan bersama.</p>}
+          {!session&&<p className="login-note">Masuk di <Link href="/">dashboard utama</Link> terlebih dahulu. Sesi login akan digunakan bersama.</p>}
           <p className="disclaimer">MVP awal memakai naskah edukasi terkurasi dan template animasi 2D. Topik khusus perlu diperiksa faktanya sebelum dipublikasikan.</p>
         </section>
         <section className="panel result-panel">
