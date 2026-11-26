@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Free-first Indonesian 2D educational animation renderer."""
-import json, math, os, subprocess, sys, urllib.parse, urllib.request, wave
+import json, math, os, subprocess, sys, urllib.parse, urllib.request, urllib.error
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -147,13 +147,12 @@ def draw_person(d, cx, cy, phase):
 def draw_frame(scene, idx, total):
     p = idx / max(1,total-1)
     img=Image.new("RGB",(W,H))
-    pix=img.load()
+    d=ImageDraw.Draw(img)
     top=(10,17,29); bottom=(19,35,51)
     for y in range(H):
         t=y/(H-1)
         col=tuple(int(top[i]*(1-t)+bottom[i]*t) for i in range(3))
-        for x in range(W): pix[x,y]=col
-    d=ImageDraw.Draw(img)
+        d.line((0,y,W,y),fill=col)
     accent="#B8F36A"; cyan="#65D8F2"; white="#F3F7FA"; muted="#A9B8C8"
     d.ellipse((-150,210,170,530),fill="#172C3C")
     d.ellipse((365,570,680,885),fill="#142B3A")
@@ -214,10 +213,10 @@ def make_subtitles(scenes, voice_duration):
         start=cursor+0.05
         end=min(voice_duration,cursor+duration)
         text=s["narration"].replace("--","—")
-        lines.append(f"{i}\\n{stamp(start)} --> {stamp(max(start+0.6,end-0.08))}\\n{text}\\n")
+        lines.append(f"{i}\n{stamp(start)} --> {stamp(max(start+0.6,end-0.08))}\n{text}\n")
         cursor+=duration
     path=WORK/"captions.srt"
-    path.write_text("\\n".join(lines),encoding="utf-8")
+    path.write_text("\n".join(lines),encoding="utf-8")
     return path
 
 def stamp(seconds):
