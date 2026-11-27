@@ -103,12 +103,14 @@ def choose_script(topic, duration):
         scenes = TOPICS["motor listrik"]
     else:
         scenes = [
-          ("Pernah bertanya bagaimana " + topic + " bekerja? Yuk, kita bahas dengan cara sederhana.", "question", "KITA BAHAS BERSAMA"),
-          ("Pertama, kenali komponen utama dan fungsi masing-masing bagian sebelum melihat keseluruhan sistem.", "parts", "KENALI KOMPONENNYA"),
-          ("Setiap komponen bekerja saling terhubung. Perubahan pada satu bagian dapat memengaruhi kinerja sistem.", "system", "SEMUA SALING TERHUBUNG"),
-          ("Dalam penggunaan nyata, hasilnya dipengaruhi desain, kondisi, dan spesifikasi dari setiap kendaraan.", "car", "KONDISI MENENTUKAN"),
-          ("Jangan hanya mengandalkan istilah atau klaim promosi. Periksa penjelasan dan spesifikasi dari sumber resmi.", "checklist", "PERIKSA SUMBER RESMI"),
-          ("Sekarang kamu sudah punya gambaran dasar tentang " + topic + ". Simpan video ini untuk mengingat penjelasannya.", "question", "SEKARANG SUDAH TAHU")
+          ("Pernah penasaran bagaimana " + topic + " bekerja? Ada hal menarik yang sering terlewat. Yuk, kita lihat.", "question", "ADA YANG MENARIK DI SINI"),
+          ("Pertama, kenali dulu komponen utama. Setiap bagian punya tugas yang berbeda.", "parts", "KENALI KOMPONENNYA"),
+          ("Setelah itu, lihat bagaimana energi atau informasi mengalir dari satu bagian ke bagian berikutnya.", "system", "IKUTI ALURNYA"),
+          ("Perhatikan hubungan antarbagian. Satu komponen memberi masukan, bagian lain merespons.", "motor", "SEMUA SALING TERHUBUNG"),
+          ("Dalam penggunaan nyata, hasilnya dipengaruhi desain, kondisi, dan spesifikasi kendaraan.", "car", "KONDISI MENENTUKAN"),
+          ("Ada juga batasan yang perlu dipahami. Tidak semua teknologi bekerja maksimal di setiap situasi.", "chart", "ADA FAKTOR PEMBATAS"),
+          ("Jadi, periksa cara kerja dan spesifikasi dari sumber resmi sebelum mengambil kesimpulan.", "checklist", "PERIKSA SUMBER RESMI"),
+          ("Sekarang kamu punya gambaran dasar tentang " + topic + ". Simpan video ini untuk mengingat penjelasannya.", "question", "SEKARANG SUDAH TAHU")
         ]
     if duration == 30:
         scenes = [scenes[i] for i in (0, 1, 3, 5, 7) if i < len(scenes)]
@@ -241,6 +243,16 @@ def draw_frame(scene, idx, total):
         draw_person(d,270,470,p)
         rr(d,(60,660,480,735),22,"#233A4B",outline=cyan)
         centered(d,"YUK, KITA PELAJARI!",680,font(19,True),white,380)
+    elif v=="chart":
+        labels=("ENERGI","EFISIENSI","KONDISI")
+        for j,label in enumerate(labels):
+            x=72+j*137; base=650
+            height=int(85+65*(0.5+0.5*math.sin(p*math.pi*2+j*1.35)))
+            rr(d,(x,base-height,x+78,base),14,"#244255",outline=cyan if j==1 else "#547084")
+            d.text((x-2,base+22),label,font=font(13,True),fill=white)
+        d.line((58,675,482,675),fill="#668093",width=3)
+        d.ellipse((int(90+300*p),310,int(120+300*p),340),fill=accent)
+        centered(d,"FAKTOR YANG MEMPENGARUHI",720,font(17,True),white,450)
     elif v=="checklist":
         for j,label in enumerate(("KENALI TEKNOLOGINYA","CEK SPESIFIKASI","PAHAMI KEBUTUHAN")):
             y=340+j*115
