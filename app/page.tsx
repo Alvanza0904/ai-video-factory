@@ -121,7 +121,7 @@ export default function Home() {
       setJobs(enriched.map(job => ({ ...job, ...(updateMap.get(job.id) || {}), outputUrl: updateMap.get(job.id)?.outputUrl || null })));
     } catch (error) { setMessage((error as Error).message); }
     finally { setLoadingJobs(false); }
-  }, [session, authorizedFetch]);
+  }, [session, authorizedFetch, activeJobId]);
 
   useEffect(() => { if (session) void loadJobs(session); }, [session, loadJobs]);
 
