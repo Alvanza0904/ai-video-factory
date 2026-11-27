@@ -15,44 +15,54 @@ BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 TOPICS = {
  "regenerative braking": [
-  ("Pernah kepikiran, kenapa mobil listrik bisa mengembalikan sebagian energi saat melambat?", "car", "REGENERATIVE BRAKING"),
-  ("Saat pengemudi melepas pedal gas atau mengerem, motor listrik dapat bekerja seperti generator.", "motor", "MOTOR JADI GENERATOR"),
-  ("Energi gerak roda diubah menjadi energi listrik, lalu dialirkan kembali menuju baterai.", "energy", "ENERGI KEMBALI KE BATERAI"),
-  ("Tapi bukan berarti mobil menciptakan energi baru. Sebagian energi tetap hilang sebagai panas dan hambatan.", "battery", "BUKAN ENERGI GRATIS"),
-  ("Seberapa banyak energi yang pulih bergantung pada kecepatan, kondisi jalan, baterai, dan pengaturan kendaraan.", "car", "TERGANTUNG KONDISI"),
-  ("Itulah regenerative braking: membantu efisiensi perjalanan sekaligus membuat pengalaman berkendara lebih terkendali.", "energy", "LEBIH EFISIEN")
+  ("Bayangin, saat mobil listrik melambat, sebagian energi geraknya ternyata masih bisa dimanfaatkan lagi. Kok bisa?", "car", "ENERGI SAAT REM, KE MANA?"),
+  ("Di sinilah regenerative braking bekerja. Saat pedal gas dilepas atau rem digunakan, motor listrik bisa berubah fungsi menjadi generator.", "motor", "MOTOR JADI GENERATOR"),
+  ("Roda yang masih berputar memutar motor. Proses ini menghasilkan energi listrik, bukan sekadar membuang energi menjadi panas.", "energy", "GERAK JADI LISTRIK"),
+  ("Listrik yang dihasilkan kemudian diatur sistem kendaraan, lalu dialirkan kembali untuk mengisi baterai.", "battery", "KEMBALI KE BATERAI"),
+  ("Efeknya terasa saat perjalanan stop-and-go, karena sebagian energi yang biasanya terbuang bisa dipulihkan.", "car", "MEMBANTU EFISIENSI"),
+  ("Tapi ingat, energi tidak kembali seratus persen. Tetap ada kehilangan karena panas dan hambatan.", "temperature", "BUKAN ENERGI GRATIS"),
+  ("Jumlah energi yang pulih dipengaruhi kecepatan, kondisi baterai, jalan, dan pengaturan pengereman.", "chart", "HASILNYA BISA BERBEDA"),
+  ("Jadi, regenerative braking membantu efisiensi dan memberi deselerasi yang bisa diatur. Menarik, kan?", "energy", "SEKARANG KAMU TAHU")
  ],
  "baterai lfp": [
-  ("Baterai mobil listrik punya beberapa jenis kimia. Salah satu yang sering dibahas adalah LFP.", "battery", "MENGENAL BATERAI LFP"),
-  ("LFP adalah singkatan dari lithium iron phosphate, yaitu lithium, besi, dan fosfat.", "chemistry", "LITHIUM IRON PHOSPHATE"),
-  ("Kimia ini dikenal memiliki stabilitas termal yang baik dan umur siklus yang relatif panjang.", "battery", "STABILITAS TERMAL"),
-  ("Namun, seperti baterai lain, performanya dipengaruhi suhu, cara pengisian, penggunaan, dan sistem pengelolaan baterai.", "temperature", "SUHU TETAP PENTING"),
-  ("Kapasitas, jarak tempuh, dan kecepatan pengisian tidak bisa disimpulkan hanya dari jenis kimia baterainya.", "charging", "BUKAN HANYA JENIS BATERAI"),
-  ("Jadi, saat membandingkan mobil listrik, lihat juga kapasitas, garansi, sistem pendingin, dan spesifikasi resminya.", "checklist", "CEK SPESIFIKASI LENGKAP")
+  ("Pernah dengar baterai LFP, tapi masih bingung apa kelebihannya? Yuk, kita kupas dengan sederhana.", "battery", "KENAPA BATERAI LFP?"),
+  ("LFP adalah singkatan lithium iron phosphate. Material utamanya terdiri dari lithium, besi, dan fosfat.", "chemistry", "LITHIUM • BESI • FOSFAT"),
+  ("Salah satu karakter menariknya adalah stabilitas termal yang baik. Ini penting untuk pengelolaan panas baterai.", "temperature", "STABILITAS TERMAL"),
+  ("LFP juga dikenal punya potensi umur siklus yang panjang, tergantung desain sel dan cara penggunaannya.", "chart", "UMUR SIKLUS"),
+  ("Di sisi lain, kepadatan energinya umumnya lebih rendah dibanding beberapa kimia baterai lain. Jadi bobot dan ukuran perlu dihitung.", "battery", "ADA PLUS DAN MINUS"),
+  ("Kinerja baterai tetap dipengaruhi suhu, sistem pendingin, pola pengisian, dan battery management system.", "charging", "BMS IKUT BERPERAN"),
+  ("Karena itu, jangan menilai mobil listrik dari jenis baterainya saja. Lihat kapasitas, garansi, jarak tempuh, dan spesifikasi resminya.", "checklist", "CEK MENYELURUH"),
+  ("Nah, sekarang kamu punya gambaran dasar tentang LFP. Simpan video ini kalau penjelasannya bermanfaat.", "question", "PAHAM LFP LEBIH MUDAH")
  ],
  "bev hev phev": [
-  ("BEV, HEV, dan PHEV terdengar mirip. Tapi cara kerja dan sumber energinya berbeda.", "threecars", "BEV • HEV • PHEV"),
-  ("BEV adalah mobil listrik murni. Roda digerakkan motor listrik dan energi utamanya berasal dari baterai.", "battery", "BEV: LISTRIK MURNI"),
-  ("HEV menggabungkan mesin bensin dan motor listrik. Baterainya umumnya diisi saat kendaraan berjalan dan mengerem.", "hybrid", "HEV: HYBRID"),
-  ("PHEV juga menggabungkan mesin dan motor listrik, tetapi baterainya dapat diisi dari sumber listrik eksternal.", "charging", "PHEV: BISA DI-CHARGE"),
-  ("Jadi, perbedaan pentingnya ada pada sumber tenaga dan apakah baterainya bisa diisi dari luar.", "threecars", "BEDA SISTEM, BEDA KEBUTUHAN"),
-  ("Pilih berdasarkan pola perjalanan, akses pengisian, dan spesifikasi kendaraan yang benar-benar ditawarkan.", "checklist", "SESUAIKAN KEBUTUHAN")
+  ("BEV, HEV, PHEV. Namanya mirip, tapi jangan sampai tertukar. Cara kerjanya berbeda, lho.", "threecars", "TIGA JENIS, TIGA CARA"),
+  ("Kita mulai dari BEV. Ini mobil listrik murni: motor listrik menggerakkan roda dan baterai jadi sumber energi utama.", "battery", "BEV • LISTRIK MURNI"),
+  ("Karena tidak memakai mesin bensin sebagai penggerak, BEV perlu diisi dari sumber listrik eksternal.", "charging", "BEV DIISI DARI LUAR"),
+  ("Berikutnya HEV. Mobil ini menggabungkan mesin bensin dan motor listrik. Baterainya umumnya terisi saat berkendara dan mengerem.", "hybrid", "HEV • HYBRID"),
+  ("Nah, PHEV juga menggabungkan mesin dan motor listrik. Bedanya, baterainya bisa diisi dari colokan listrik.", "charging", "PHEV • PLUG-IN HYBRID"),
+  ("Cara gampang mengingatnya: BEV listrik murni, HEV hybrid, dan PHEV hybrid yang bisa di-charge dari luar.", "threecars", "INGAT PERBEDAANNYA"),
+  ("Pilihan terbaik bergantung pada rutinitas, akses charging, dan jarak perjalanan harian kamu.", "chart", "SESUAIKAN RUTINITAS"),
+  ("Jadi, jangan cuma lihat namanya. Pahami sistem tenaga dan cek spesifikasi model yang ingin kamu pilih.", "checklist", "PILIH DENGAN PAHAM")
  ],
  "ac dc charging": [
-  ("Kenapa ada charger AC dan DC? Keduanya mengisi baterai, tetapi jalur listriknya berbeda.", "charging", "AC ATAU DC?"),
-  ("Pada pengisian AC, listrik bolak-balik masuk ke kendaraan dan diubah menjadi arus searah oleh onboard charger.", "ac", "AC: DIUBAH DI MOBIL"),
-  ("Pada pengisian DC, konversi utama dilakukan di stasiun pengisian sebelum listrik masuk ke baterai.", "dc", "DC: KONVERSI DI STASIUN"),
-  ("Karena itu, pengisian DC umumnya bisa lebih cepat jika kendaraan dan stasiun mendukung dayanya.", "charging", "POTENSI LEBIH CEPAT"),
-  ("Kecepatan nyata tetap dipengaruhi batas kendaraan, suhu baterai, tingkat isi, dan kondisi stasiun.", "battery", "KECEPATAN BISA BERUBAH"),
-  ("Jadi, selalu cocokkan spesifikasi port, daya maksimum, dan rekomendasi pengisian kendaraanmu.", "checklist", "CEK KOMPATIBILITAS")
+  ("Mau isi baterai mobil listrik lebih cepat? Sebelum pilih charger, kenali dulu bedanya AC dan DC.", "charging", "AC VS DC CHARGING"),
+  ("AC adalah arus bolak-balik. Listrik masuk ke mobil, lalu onboard charger mengubahnya menjadi arus searah untuk baterai.", "ac", "AC • KONVERSI DI MOBIL"),
+  ("Karena konversi dilakukan di dalam kendaraan, kecepatan AC dibatasi kemampuan onboard charger.", "battery", "BATAS ONBOARD CHARGER"),
+  ("Pada DC, konversi utama sudah dilakukan di stasiun pengisian. Listrik searah kemudian disalurkan ke baterai.", "dc", "DC • KONVERSI DI STASIUN"),
+  ("Itulah sebabnya DC fast charging umumnya menawarkan daya lebih tinggi dan waktu pengisian lebih singkat.", "charging", "DC FAST CHARGING"),
+  ("Tapi mobil tidak selalu menerima daya maksimum. Suhu baterai dan persentase isi ikut berpengaruh.", "temperature", "DAYA BISA BERUBAH"),
+  ("Jadi, cek kemampuan AC dan DC mobil, konektor, serta batas daya yang didukung sebelum mengisi.", "checklist", "CEK KOMPATIBILITAS"),
+  ("Sekarang bedanya lebih jelas, kan? AC dan DC sama-sama berguna, tinggal sesuaikan dengan kebutuhan.", "question", "PILIH SESUAI KEBUTUHAN")
  ],
  "motor listrik": [
-  ("Mobil listrik tidak perlu mesin pembakaran untuk menggerakkan roda. Lalu bagaimana mobil bisa melaju?", "car", "BAGAIMANA MOBIL MELAJU?"),
-  ("Energi dari baterai dikirim ke inverter dan sistem pengendali sesuai kebutuhan pengemudi.", "battery", "ENERGI DARI BATERAI"),
-  ("Inverter mengatur suplai listrik ke motor, termasuk mengubah arus searah baterai menjadi arus yang dibutuhkan motor.", "motor", "INVERTER MENGATUR DAYA"),
-  ("Motor listrik mengubah energi listrik menjadi putaran mekanis yang menggerakkan roda melalui sistem transmisi reduksi.", "energy", "LISTRIK JADI GERAK"),
-  ("Karena karakter torsi motor listrik, respons akselerasi bisa terasa cepat sejak kecepatan rendah.", "car", "RESPONS AKSELERASI"),
-  ("Itulah alur sederhananya: baterai, pengendali daya, motor, lalu roda bergerak.", "checklist", "BATERAI → MOTOR → RODA")
+  ("Mobil listrik bisa melaju tanpa mesin bensin. Jadi, apa yang sebenarnya membuat rodanya berputar? Ini alurnya.", "car", "RAHASIA DI BALIK RODA"),
+  ("Semuanya dimulai dari baterai. Baterai menyimpan energi listrik dalam bentuk arus searah atau DC.", "battery", "1 • BATERAI MENYIMPAN"),
+  ("Saat kamu menekan pedal akselerator, sistem kontrol membaca permintaan tenaga dan mengatur aliran energi.", "system", "2 • KONTROL DAYA"),
+  ("Berikutnya inverter mengatur listrik dari baterai agar sesuai dengan kebutuhan motor listrik.", "motor", "3 • INVERTER MENGATUR ARUS"),
+  ("Motor mengubah energi listrik menjadi putaran mekanis. Putaran inilah yang menghasilkan torsi untuk menggerakkan roda.", "energy", "4 • MOTOR MEMUTAR RODA"),
+  ("Putaran motor diteruskan melalui reduksi gear ke roda. Torsi sejak putaran rendah membuat respons awal terasa spontan.", "car", "5 • RODA BERGERAK"),
+  ("Saat mobil melambat, pada kondisi tertentu motor bisa bekerja sebagai generator dan membantu mengembalikan energi.", "energy", "BONUS • ENERGI DIPULIHKAN"),
+  ("Jadi alurnya: baterai, kontrol daya, inverter, motor, lalu roda. Lebih mudah kalau dilihat tahap demi tahap!", "checklist", "BATERAI → RODA")
  ]
 }
 
@@ -101,7 +111,9 @@ def choose_script(topic, duration):
           ("Sekarang kamu sudah punya gambaran dasar tentang " + topic + ". Simpan video ini untuk mengingat penjelasannya.", "question", "SEKARANG SUDAH TAHU")
         ]
     if duration == 30:
-        scenes = [scenes[i] for i in (0, 1, 2, 4, 5)]
+        scenes = [scenes[i] for i in (0, 1, 3, 5, 7) if i < len(scenes)]
+    elif duration == 45:
+        scenes = scenes[:7]
     return [{"narration": x[0], "visual": x[1], "title": x[2]} for x in scenes]
 
 def font(size, bold=False):
