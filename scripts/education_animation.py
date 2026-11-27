@@ -64,7 +64,13 @@ def fetch_manifest():
     job = os.environ["JOB_ID"]
     query = urllib.parse.urlencode({"job_id": job, "run_id": os.environ["GITHUB_RUN_ID"]})
     req = urllib.request.Request(os.environ["MANIFEST_URL"] + "?" + query,
-        headers={"Authorization": "Bearer " + os.environ["OIDC_TOKEN"], "Accept": "application/json"})
+        headers={
+            "Authorization": "Bearer " + os.environ["OIDC_TOKEN"],
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Cache-Control": "no-cache",
+        })
     try:
         with urllib.request.urlopen(req, timeout=30) as res:
             return json.loads(res.read().decode("utf-8"))
