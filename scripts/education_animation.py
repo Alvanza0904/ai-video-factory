@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Free-first Indonesian 2D educational animation renderer."""
-import json, math, os, subprocess, sys, urllib.parse, urllib.request, urllib.error
+import json, math, os, subprocess, sys, urllib.parse, urllib.request, urllib.error, wave
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -297,18 +297,41 @@ def stamp(seconds):
     h,ms=divmod(ms,3600000); m,ms=divmod(ms,60000); s,ms=divmod(ms,1000)
     return f"{h:02}:{m:02}:{s:02},{ms:03}"
 
-def piper_voice(text):
+def piper_voice(scene_texts):
     if not MODEL.exists():
         raise RuntimeError("Model suara Bahasa Indonesia tidak ditemukan.")
+    # Synthesize one complete spoken thought per scene. This gives the TTS a
+    # fresh phrase boundary and adds a short breathing pause between ideas.
+    if isinstance(scene_texts, str):
+        scene_texts = [scene_texts]
+    clips=[]
+    for index, spoken_text in enumerate(scene_texts,1):
+        spoken_text=spoken_text.strip()
+        if not spoken_text:
+            continue
+        clip=WORK/f"voice-{index:02d}.wav"
+        proc=subprocess.run(["piper","--model",str(MODEL),"--length_scale","1.04",
+            "--noise_scale","0.72","--noise_w","0.82","--output_file",str(clip)],
+            input=spoken_text,text=True,capture_output=True)
+        if proc.returncode:
+            raise RuntimeError("Piper TTS gagal: "+proc.stderr[-700:])
+        if not clip.exists() or clip.stat().st_size<1000:
+            raise RuntimeError("Piper tidak menghasilkan audio untuk scene "+str(index))
+        clips.append(clip)
+    if not clips:
+        raise RuntimeError("Naskah suara kosong.")
     output=WORK/"narration.wav"
-    # Calm the delivery slightly; conversational punctuation in the script creates phrase-level pauses.
-    proc=subprocess.run(["piper","--model",str(MODEL),"--length_scale","1.04",
-        "--noise_scale","0.72","--noise_w","0.82","--output_file",str(output)],
-        input=text,text=True,capture_output=True)
-    if proc.returncode:
-        raise RuntimeError("Piper TTS gagal: "+proc.stderr[-700:])
-    if not output.exists() or output.stat().st_size<1000:
-        raise RuntimeError("Piper tidak menghasilkan audio narasi.")
+    with wave.open(str(clips[0]),"rb") as first:
+        params=first.getparams()
+    silence_frames=int(params.framerate*0.20)
+    silence=b"\\x00"*(silence_frames*params.nchannels*params.sampwidth)
+    with wave.open(str(output),"wb") as combined:
+        combined.setparams(params)
+        for index,clip in enumerate(clips):
+            with wave.open(str(clip),"rb") as part:
+                combined.writeframes(part.readframes(part.getnframes()))
+            if index < len(clips)-1:
+                combined.writeframes(silence)
     return output
 
 def main():
@@ -325,7 +348,7 @@ def main():
     scenes=choose_script(topic,duration)
     narration=" ".join(s["narration"] for s in scenes)
     print("Narration:",narration,flush=True)
-    audio=piper_voice(narration)
+    audio=piper_voice([s["narration"] for s in scenes])
     probe=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","json",str(audio)]))
     voice_duration=float(probe["format"]["duration"])
     total_duration=voice_duration+1.8
