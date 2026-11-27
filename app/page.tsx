@@ -106,16 +106,19 @@ export default function Home() {
       const outputs = outputsResponse.ok ? await outputsResponse.json() as Array<{ job_id: string; filename: string; size_bytes: number }> : [];
       const outputMap = new Map(outputs.map(item => [item.job_id, item]));
       const enriched = animationJobs.map(job => ({ ...job, filename: outputMap.get(job.id)?.filename, size_bytes: outputMap.get(job.id)?.size_bytes }));
-      const completed = enriched.filter(job => job.status === "completed");
-      const urls = await Promise.all(completed.map(async job => {
+      const candidates = enriched.filter(job => !["failed", "cancelled"].includes(job.status));
+      const updates = await Promise.all(candidates.map(async job => {
         try {
           const response = await authorizedFetch("/api/jobs/status?job_id=" + encodeURIComponent(job.id), {}, current);
           const data = await response.json() as StatusPayload;
-          return [job.id, response.ok ? data.outputUrl || null : null] as const;
+          if (!response.ok || !data.job) return [job.id, null] as const;
+          return [job.id, { status: data.job.status, progress: data.job.progress, error_message: data.job.error_message || null, outputUrl: data.outputUrl || null }] as const;
         } catch { return [job.id, null] as const; }
       }));
-      const urlMap = new Map(urls);
-      setJobs(enriched.map(job => ({ ...job, outputUrl: urlMap.get(job.id) || null })));
+      const updateMap = new Map(updates);
+      const activeUpdate = activeJobId ? updateMap.get(activeJobId) : null;
+      if (activeUpdate && ["completed", "failed"].includes(activeUpdate.status)) localStorage.removeItem("avf-education-job");
+      setJobs(enriched.map(job => ({ ...job, ...(updateMap.get(job.id) || {}), outputUrl: updateMap.get(job.id)?.outputUrl || null })));
     } catch (error) { setMessage((error as Error).message); }
     finally { setLoadingJobs(false); }
   }, [session, authorizedFetch]);
