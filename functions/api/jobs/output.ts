@@ -20,6 +20,35 @@ function parseRange(value: string | null, size: number): { offset: number; lengt
   return { offset: start, length: end - start + 1 };
 }
 
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  const url = new URL(request.url);
+  const jobId = url.searchParams.get("job_id") || "";
+  const userId = url.searchParams.get("user_id") || "";
+  const expires = url.searchParams.get("expires") || "";
+  const signature = url.searchParams.get("signature") || "";
+
+  if (!jobId || !userId || !(await verifyJobSignature(env, jobId, userId, expires, signature))) {
+    return json({ error: "Izin unggah video tidak valid atau kedaluwarsa." }, 403);
+  }
+  if (!request.body) return json({ error: "File video kosong." }, 400);
+  const contentType = request.headers.get("Content-Type") || "";
+  if (!contentType.toLowerCase().startsWith("video/mp4")) {
+    return json({ error: "Format hasil render harus MP4." }, 415);
+  }
+  const contentLength = Number(request.headers.get("Content-Length") || 0);
+  if (contentLength > 512 * 1024 * 1024) return json({ error: "Ukuran video melebihi batas 512 MB." }, 413);
+
+  const key = `users/${userId}/renders/${jobId}.mp4`;
+  const stored = await env.MEDIA_BUCKET.put(key, request.body, {
+    httpMetadata: {
+      contentType: "video/mp4",
+      contentDisposition: `inline; filename="animated-video-${jobId}.mp4"`
+    },
+    customMetadata: { jobId, userId, uploadedAt: new Date().toISOString() }
+  });
+  return json({ success: true, key, size: stored.size, etag: stored.etag });
+};
+
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const url = new URL(request.url);
   const jobId = url.searchParams.get("job_id") || "";
