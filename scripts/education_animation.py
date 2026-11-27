@@ -324,7 +324,7 @@ def piper_voice(scene_texts):
     with wave.open(str(clips[0]),"rb") as first:
         params=first.getparams()
     silence_frames=int(params.framerate*0.20)
-    silence=b"\\x00"*(silence_frames*params.nchannels*params.sampwidth)
+    silence=b"\x00"*(silence_frames*params.nchannels*params.sampwidth)
     with wave.open(str(output),"wb") as combined:
         combined.setparams(params)
         for index,clip in enumerate(clips):
