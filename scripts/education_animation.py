@@ -65,8 +65,13 @@ def fetch_manifest():
     query = urllib.parse.urlencode({"job_id": job, "run_id": os.environ["GITHUB_RUN_ID"]})
     req = urllib.request.Request(os.environ["MANIFEST_URL"] + "?" + query,
         headers={"Authorization": "Bearer " + os.environ["OIDC_TOKEN"], "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=30) as res:
-        return json.loads(res.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=30) as res:
+            return json.loads(res.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")[:1200]
+        print("MANIFEST HTTP ERROR:", error.code, dict(error.headers), detail, file=sys.stderr, flush=True)
+        raise
 
 def choose_script(topic, duration):
     key = topic.lower()
@@ -336,7 +341,8 @@ def main():
             result=json.loads(response.read().decode())
             if not result.get("success"): raise RuntimeError("R2 tidak mengonfirmasi unggahan video.")
     except urllib.error.HTTPError as error:
-        raise RuntimeError(f"Upload video ke R2 gagal (HTTP {error.code}).") from None
+        detail = error.read().decode("utf-8", errors="replace")[:1200]
+        raise RuntimeError(f"Upload video ke R2 gagal (HTTP {error.code}): {detail}") from None
     print(f"SUCCESS: {brand} education video '{topic}' — {final['format']['duration']} sec, {OUT.stat().st_size} bytes.",flush=True)
 
 if __name__=="__main__":
