@@ -9,8 +9,12 @@ manifest_request = urllib.request.Request(
 try:
     with urllib.request.urlopen(manifest_request, timeout=30) as response:
         manifest = json.loads(response.read().decode())
+except urllib.error.HTTPError as error:
+    detail = error.read().decode("utf-8", errors="replace")[:1200]
+    print("Could not load job manifest for failure report:", error.code, dict(error.headers), detail)
+    raise SystemExit(0)
 except Exception as error:
-    print("Could not load job manifest for failure report:", type(error).__name__)
+    print("Could not load job manifest for failure report:", type(error).__name__, str(error))
     raise SystemExit(0)
 
 params = urllib.parse.urlencode({
