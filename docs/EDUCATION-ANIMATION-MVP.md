@@ -1,7 +1,7 @@
 # AI Animated Education Factory — MVP
 
 ## What this module does
-Creates a vertical Indonesian educational animation from a topic without requiring user-uploaded footage. It uses a curated script library for supported EV topics, Piper Indonesian TTS, Pillow-generated 2D scenes, FFmpeg composition, subtitles and a low-volume synthetic audio bed.
+Creates a vertical Indonesian educational animation from a topic without requiring user-uploaded footage. It uses hook-first conversational Indonesian scripts, an eight-beat explainer structure, Piper Indonesian TTS, Pillow-generated 2D scenes, animated diagrams and moving accents, FFmpeg composition, subtitles and a low-volume synthetic audio bed.
 
 ## Supported first topics
 - Regenerative braking
@@ -29,5 +29,5 @@ Custom topics are accepted by the form, but the current deterministic script fal
 
 ## Limits
 - GitHub Actions minutes, storage, Supabase, Cloudflare and Hugging Face availability are subject to their current free-tier limits.
-- The first version uses deterministic scripts and vector illustration templates. It is not yet a fully generative LLM director or a character lip-sync engine.
+- The current upgrade adds a strong opening hook, step-by-step explanation, kinetic visual accents, moving car wheels, parallax particles, animated charts and more conversational wording. It is still a template-based 2D explainer, not a fully generative LLM director or character lip-sync engine. Piper is a fixed neural voice: pace and prosody parameters can be tuned, but it cannot reliably perform nuanced emotional acting. The target voice direction is warm, friendly, confident Indonesian; conversational rather than announcer-like; clear diction; medium-slow pacing; short natural pauses; lively emphasis on key terms; no hard-sell tone.
 - The selected Piper Indonesian voice is listed as MIT in the model repository, but its model card points to a dataset whose license is 'see source URL'. Treat this voice as experimental until its dataset rights are confirmed for commercial marketing use. Check every model and asset license before publication.
