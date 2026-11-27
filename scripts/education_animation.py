@@ -143,7 +143,7 @@ def caption_lines(text, fnt, max_width=420):
 def rr(draw, box, radius, fill, outline=None, width=2):
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
 
-def draw_car(d, cx, cy, scale=1.0, accent="#B8F36A"):
+def draw_car(d, cx, cy, scale=1.0, accent="#B8F36A", phase=0.0):
     bw, bh = int(260*scale), int(94*scale)
     x, y = int(cx-bw/2), int(cy-bh/2)
     d.rounded_rectangle((x,y+30*scale,x+bw,y+bh), radius=int(26*scale), fill="#DCE8F2", outline="#FFFFFF", width=3)
@@ -152,6 +152,10 @@ def draw_car(d, cx, cy, scale=1.0, accent="#B8F36A"):
     for wx in (x+58*scale,x+202*scale):
         d.ellipse((wx-22*scale,y+bh-8*scale,wx+22*scale,y+bh+36*scale), fill="#172334", outline="#9AAABD", width=4)
         d.ellipse((wx-8*scale,y+bh+6*scale,wx+8*scale,y+bh+22*scale), fill=accent)
+        for spoke in range(4):
+            angle=phase*math.pi*2+spoke*math.pi/2
+            sx=wx+math.cos(angle)*13*scale; sy=y+bh+14*scale+math.sin(angle)*13*scale
+            d.line((wx,y+bh+14*scale,sx,sy),fill="#D8E6EF",width=max(1,int(2*scale)))
     d.rounded_rectangle((x+8*scale,y+48*scale,x+30*scale,y+65*scale), radius=5, fill="#FFE8A3")
     d.rounded_rectangle((x+bw-30*scale,y+48*scale,x+bw-8*scale,y+65*scale), radius=5, fill="#FF7A72")
 
@@ -184,7 +188,14 @@ def draw_frame(scene, idx, total):
         col=tuple(int(top[i]*(1-t)+bottom[i]*t) for i in range(3))
         d.line((0,y,W,y),fill=col)
     accent="#B8F36A"; cyan="#65D8F2"; white="#F3F7FA"; muted="#A9B8C8"
-    d.ellipse((-150,210,170,530),fill="#172C3C")
+    # Animated particles and parallax accents add continuous motion between scene changes.
+    for j in range(14):
+        px=(j*71 + int(p*W*1.8)) % (W+30) - 15
+        py=(j*127 + int(math.sin(p*math.pi*2+j)*24)) % H
+        r=2+(j%3)
+        d.ellipse((px-r,py-r,px+r,py+r),fill="#29465A")
+    ring_shift=int(14*math.sin(p*math.pi*2))
+    d.ellipse((-150+ring_shift,210,170+ring_shift,530),outline="#203A4D",width=5)
     d.ellipse((365,570,680,885),fill="#142B3A")
     rr(d,(28,34,W-28,79),18,"#1B2A37")
     d.text((48,47),"AUTO EDUCATION  /  EXPLAINED",font=font(15,True),fill=accent)
@@ -192,7 +203,7 @@ def draw_frame(scene, idx, total):
     v=scene["visual"]
     cy=470
     if v in ("car","threecars","hybrid"):
-        draw_car(d, int(270+math.sin(p*math.pi*2)*28), cy, .88, accent)
+        draw_car(d, int(270+math.sin(p*math.pi*2)*42), cy, .88+0.025*math.sin(p*math.pi*2), accent, p*3)
         if v=="threecars":
             for j,label in enumerate(("BEV","HEV","PHEV")):
                 rr(d,(40+j*158,625,184+j*158,687),15,"#223B4D",outline=accent if j==0 else "#547084")
@@ -209,7 +220,7 @@ def draw_frame(scene, idx, total):
             d.line((270,560,270,690),fill=cyan,width=9)
             d.polygon([(270,690),(252,660),(288,660)],fill=cyan)
     elif v in ("motor","energy","ac","dc","system","parts"):
-        draw_car(d,270,590,.65,accent)
+        draw_car(d,int(270+12*math.sin(p*math.pi*2)),590,.65,accent,p*3)
         d.ellipse((190,330,350,490),outline=cyan,width=9)
         d.arc((170,310,370,510),int(40+p*200),int(260+p*200),fill=accent,width=12)
         d.polygon([(350,380),(370,400),(340,405)],fill=accent)
@@ -266,7 +277,9 @@ def piper_voice(text):
     if not MODEL.exists():
         raise RuntimeError("Model suara Bahasa Indonesia tidak ditemukan.")
     output=WORK/"narration.wav"
-    proc=subprocess.run(["piper","--model",str(MODEL),"--output_file",str(output)],
+    # Calm the delivery slightly; conversational punctuation in the script creates phrase-level pauses.
+    proc=subprocess.run(["piper","--model",str(MODEL),"--length_scale","1.04",
+        "--noise_scale","0.72","--noise_w","0.82","--output_file",str(output)],
         input=text,text=True,capture_output=True)
     if proc.returncode:
         raise RuntimeError("Piper TTS gagal: "+proc.stderr[-700:])
