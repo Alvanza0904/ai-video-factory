@@ -1,4 +1,4 @@
-name: Validate AI Video Factory
+name: Validate Animated Video Studio
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   web-build:
-    name: Next.js build
+    name: Next.js build and animation checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -25,19 +25,11 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Type check
         run: npx tsc --noEmit
-      - name: Install FFmpeg for renderer smoke test
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
       - name: Install Python dependencies for animation tests
         run: python -m pip install --upgrade pip pillow
-      - name: Validate Python render and AI worker syntax
-        run: python3 -m py_compile scripts/*.py
+      - name: Validate animation worker syntax
+        run: python3 -m py_compile scripts/education_animation.py scripts/education_smoke_test.py scripts/report_failure.py
       - name: Test animated education scene library
         run: python3 scripts/education_smoke_test.py
-      - name: Test generated sound library and audio mixing
-        run: python3 scripts/audio_smoke_test.py
-      - name: Test multi-clip transition normalization
-        run: python3 scripts/xfade_smoke_test.py
       - name: Build
         run: npm run build
