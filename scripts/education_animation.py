@@ -341,7 +341,7 @@ def main():
         "expires":manifest["expires"],"signature":manifest["signature"],"run_id":os.environ["GITHUB_RUN_ID"]})
     req=urllib.request.Request(os.environ["OUTPUT_UPLOAD_BASE_URL"]+"?"+params,data=OUT.read_bytes(),
         headers={"Content-Type":"video/mp4","Content-Length":str(OUT.stat().st_size),
-        "Authorization":"Bearer "+os.environ["OIDC_TOKEN"],"User-Agent":"AI-Animated-Education-Factory"},method="POST")
+        "Authorization":"Bearer "+os.environ["OIDC_TOKEN"],"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.8127.88 Safari/537.36"},method="POST")
     try:
         with urllib.request.urlopen(req,timeout=300) as response:
             result=json.loads(response.read().decode())
