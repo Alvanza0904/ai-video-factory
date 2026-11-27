@@ -1,58 +1,27 @@
-# AI Video Factory
+# Animated Video Studio
 
-Mobile-first universal automatic video editor. Target workflow: upload multiple clips from a phone, let AI understand the footage and story, automatically select an editing style, render, quality-check, and return a finished vertical MP4.
+Workspace mobile-first untuk membuat video animasi edukasi otomotif OMODA dan JAECOO.
 
-## Product direction
+## Fitur utama
+- **Generate Animasi**: pilih brand, topik, dan durasi video.
+- **Proses Produksi**: pantau antrean dan progres render secara otomatis.
+- **Folder Hasil Produksi**: galeri video final, dipisah ke folder OMODA dan JAECOO, dengan pemutar dan unduhan MP4.
 
-Supported content genres:
-- Cinematic automotive / product
-- Drama and storytelling
-- POV
-- Comedy and entertainment
-- One actor playing multiple characters
-- Review and talking head
-- Mixed / auto-detected formats
+## Arsitektur
+- Next.js App Router + Cloudflare Pages Functions.
+- Supabase Auth dan Postgres untuk akun, proyek, dan riwayat job.
+- Cloudflare R2 untuk manifest privat dan file video final.
+- GitHub Actions untuk render animasi Python + FFmpeg + Piper.
 
-Target output: MP4, H.264/AAC, vertical 1080x1920, 30 fps, 30–60 seconds.
+## Render animasi
+Workflow aktif: `.github/workflows/education-animation.yml`
+Renderer: `scripts/education_animation.py`
+Smoke test: `scripts/education_smoke_test.py`
 
-## Current foundation status
-
-This repository currently contains the initial Next.js dashboard and a manual GitHub Actions FFmpeg smoke-test workflow.
-
-**Not yet implemented:** authenticated multi-file upload, Supabase/R2 storage integration, Re:Link AI analysis, speech transcription, editing blueprint generation, multi-clip timeline assembly, genre-specific editing intelligence, automated sound design, AI self-review, Vercel deployment, and dashboard-triggered rendering.
-
-Do not present these capabilities as production-ready until implemented and tested end-to-end.
-
-## Architecture
-
-- Next.js dashboard (Vercel deployment to be configured)
-- Supabase for database and auth (to be configured)
-- Cloudflare R2 for source and final video storage (to be configured)
-- Re:Link Gateway for AI orchestration (server-side secret only)
-- GitHub Actions Ubuntu runner for on-demand FFmpeg processing
-- FFmpeg as the first rendering engine; Remotion is optional for later compositions
-
-## Local development
-
+## Pengembangan
 ```bash
 npm install
 npm run dev
 ```
 
-## GitHub Actions smoke test
-
-Open Actions → AI Video Factory - Multi-Clip Cloud Render → Run workflow. Provide up to 10 HTTPS source-video URLs (one per line). The job normalizes the clips to vertical 1080x1920, 30 fps, concatenates them, and stores the MP4 as a short-lived workflow artifact.
-
-This is an infrastructure smoke test only. It does not yet perform AI scene understanding, creative clip selection, transitions, sound design, subtitles, or upload from the dashboard. Do not use it as the finished editor.
-
-## Secrets and security
-
-Never commit API keys, Supabase service-role keys, R2 credentials, signed URLs, or user footage into this public repository. Configure secrets in GitHub Actions / Vercel settings. Keep privileged storage operations server-side.
-
-## Cost and privacy notes
-
-GitHub Actions usage, artifact limits, and retention depend on GitHub's current plan and policies. Public repository runner eligibility does not make storage, AI tokens, hosting, or every external service unlimited or universally free. Source videos should be private objects in storage, accessed with short-lived signed URLs.
-
-## Hosting
-
-The initial mobile-first dashboard is configured for Cloudflare Pages static export at `https://ai-video-factory-43b.pages.dev`. The Pages project is connected to this public GitHub repository. Production deployment must be verified after the first build completes.
+Aplikasi utama: `/`. Rute lama `/education` diarahkan ke halaman utama.
