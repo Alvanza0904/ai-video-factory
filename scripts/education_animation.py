@@ -136,23 +136,25 @@ def centered(draw, text, y, fnt, fill, maxw=470):
         y += fnt.size + 10
     return y
 
-def caption_lines(text, fnt, max_width=420):
-    probe = ImageDraw.Draw(Image.new("RGB",(1,1)))
-    words, lines, line = text.split(), [], ""
+def caption_lines(text, fnt, max_width=460):
+    probe=ImageDraw.Draw(Image.new("RGB",(1,1)))
+    words=text.split(); lines=[]; line=""
     for word in words:
-        test = (line + " " + word).strip()
-        if probe.textbbox((0,0), test, font=fnt)[2] <= max_width:
-            line = test
+        candidate=(line+" "+word).strip()
+        if probe.textbbox((0,0),candidate,font=fnt)[2]<=max_width:
+            line=candidate
         else:
             if line: lines.append(line)
-            line = word
+            line=word
     if line: lines.append(line)
-    if len(lines) > 2:
-        last = lines[1]
-        while last and probe.textbbox((0,0), last + "…", font=fnt)[2] > max_width:
-            last = last[:-1]
-        lines = [lines[0], last.rstrip() + "…"]
-    return lines[:2]
+    if len(lines)>3:
+        lines=lines[:3]
+        last=lines[-1]
+        while last and probe.textbbox((0,0),last+"…",font=fnt)[2]>max_width:
+            last=last[:-1]
+        lines[-1]=last.rstrip()+"…"
+    return lines
+
 
 def rr(draw, box, radius, fill, outline=None, width=2):
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
