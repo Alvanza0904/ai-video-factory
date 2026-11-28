@@ -177,9 +177,21 @@ def rr(draw, box, radius, fill, outline=None, width=2):
 def draw_car(d, cx, cy, scale=1.0, accent="#B8F36A", phase=0.0):
     bw, bh = int(260*scale), int(94*scale)
     x, y = int(cx-bw/2), int(cy-bh/2)
-    d.rounded_rectangle((x,y+30*scale,x+bw,y+bh), radius=int(26*scale), fill="#DCE8F2", outline="#FFFFFF", width=3)
-    d.polygon([(x+45*scale,y+31*scale),(x+88*scale,y),(x+190*scale,y),(x+225*scale,y+31*scale)], fill="#9DC8E4")
-    d.line([(x+88*scale,y+4*scale),(x+88*scale,y+31*scale),(x+190*scale,y+31*scale),(x+190*scale,y+4*scale)], fill="#4D657A", width=3)
+    # Premium SUV silhouette: upright cabin, tall shoulder, signature grille and LED light bar.
+    d.rounded_rectangle((x,y+25*scale,x+bw,y+bh), radius=int(19*scale), fill="#DCE8F2", outline="#FFFFFF", width=3)
+    d.polygon([(x+34*scale,y+29*scale),(x+78*scale,y-5*scale),(x+190*scale,y-5*scale),(x+230*scale,y+29*scale)], fill="#9DC8E4")
+    d.line([(x+78*scale,y),(x+78*scale,y+30*scale),(x+190*scale,y+30*scale),(x+190*scale,y)], fill="#4D657A", width=3)
+    # Brand-inspired front fascia, intentionally illustrative rather than a false exact model render.
+    grille_x=x+bw*.43
+    d.rounded_rectangle((grille_x,y+43*scale,grille_x+42*scale,y+76*scale),radius=5,fill="#263B4C",outline="#8FA7B7",width=2)
+    if ACTIVE_BRAND.upper().startswith("OMODA"):
+        for gy in range(0,4):
+            d.line((grille_x+6*scale,y+(49+gy*7)*scale,grille_x+36*scale,y+(49+gy*7)*scale),fill="#C6F36A",width=2)
+    else:
+        for gx in range(0,4):
+            d.line((grille_x+(8+gx*8)*scale,y+47*scale,grille_x+(8+gx*8)*scale,y+72*scale),fill="#B8CBD6",width=2)
+    d.line((x+18*scale,y+39*scale,x+76*scale,y+39*scale),fill="#FFFFFF",width=max(2,int(5*scale)))
+    d.line((x+bw-76*scale,y+39*scale,x+bw-18*scale,y+39*scale),fill="#FFFFFF",width=max(2,int(5*scale)))
     for wx in (x+58*scale,x+202*scale):
         d.ellipse((wx-22*scale,y+bh-8*scale,wx+22*scale,y+bh+36*scale), fill="#172334", outline="#9AAABD", width=4)
         d.ellipse((wx-8*scale,y+bh+6*scale,wx+8*scale,y+bh+22*scale), fill=accent)
@@ -303,6 +315,23 @@ def draw_frame(scene, idx, total):
             d.ellipse((72+slide,y+23,116+slide,y+59),fill=lime)
             d.line((82+slide,y+41,92+slide,y+50,108+slide,y+31),fill=navy,width=5)
             d.text((137+slide,y+29),label,font=font(15,True),fill="#FFFFFF")
+    elif v=="promo":
+        # High-energy branded end card with SUV, animated light streaks and confetti.
+        d.rectangle((0,250,W,790),fill="#102B3B")
+        for k in range(14):
+            q=(p*1.6+k/14)%1
+            xx=int(q*W); yy=285+(k*37)%430
+            rr(d,(xx,yy,xx+5,yy+5),3,lime if k%3 else blue)
+        for k in range(5):
+            yy=300+k*78+int(math.sin(p*math.pi*3+k)*10)
+            d.line((18,yy,95,yy-18),fill=blue,width=3)
+            d.line((445,yy+22,520,yy+4),fill=teal,width=3)
+        draw_car(d,270,535,1.20,lime,p*9)
+        pill((48,292,492,350),"ALVAN  •  SALES JAECOO PALEMBANG",navy,lime,16)
+        centered(d,"JAECOO  +  OMODA",650,font(26,True),"#FFFFFF",450)
+        rr(d,(48,704,492,770),18,lime)
+        centered(d,"KUNJUNGI WEBSITE RESMI",718,font(14,True),navy,420)
+        centered(d,"jaecoopalembang.web.id",741,font(17,True),navy,420)
     else: draw_person(d,270,440,p)
     words=scene.get("narration","").split()
     chunks=[" ".join(words[i:i+5]) for i in range(0,len(words),5)] or [""]
@@ -410,7 +439,7 @@ def make_sound_design(scenes, scene_durations, total_duration):
       "temperature":("whoosh",.10,.34),"chemistry":("energy",.10,.38),"motor":("motor",.16,.58),
       "energy":("motor",.13,.50),"ac":("electric",.11,.40),"dc":("electric",.11,.40),
       "system":("whoosh",.09,.34),"checklist":("click",.08,.16),"chart":("click",.07,.16),
-      "question":("whoosh",.12,.40),"threecars":("whoosh",.10,.38),"hybrid":("energy",.10,.38),"parts":("click",.07,.16)}
+      "question":("whoosh",.12,.40),"threecars":("whoosh",.10,.38),"hybrid":("energy",.10,.38),"parts":("click",.07,.16),"promo":("whoosh",.18,.62)}
     cursor=0.0; events=[]
     for scene,duration in zip(scenes,scene_durations):
         cue=cue_map.get(scene.get("visual",""))
@@ -492,6 +521,12 @@ def main():
     manifest={"jobId":"smoke-test","userId":"smoke-test","expires":"0","signature":"0","brand":"JAECOO","topic":"regenerative braking","duration":30} if os.environ.get("SMOKE_TEST")=="1" else fetch_manifest()
     ACTIVE_BRAND=manifest["brand"]; topic=manifest["topic"]; brand=manifest["brand"]; duration=int(manifest["duration"])
     scenes=choose_script(topic,duration)
+    # Mandatory branded outro on every generated video.
+    scenes.append({
+        "narration":"Lagi cari mobil JAECOO atau OMODA di Palembang? Saya Alvan, Sales JAECOO Palembang. Yuk, lihat model dan info terbarunya di jaecoopalembang.web.id. Sampai ketemu!",
+        "visual":"promo",
+        "title":"MAU KENALAN DENGAN JAECOO & OMODA?"
+    })
     print("Narration:", " ".join(x["narration"] for x in scenes),flush=True)
     audio,spoken=neural_voice([x["narration"] for x in scenes])
     clip_durations=[d+.48 for d in spoken]
@@ -523,7 +558,7 @@ def main():
     video=next((x for x in final["streams"] if x.get("codec_name")=="h264"),None)
     if not video or video.get("width")!=1080 or video.get("height")!=1920: raise RuntimeError("Output bukan H.264 1080x1920.")
     if OUT.stat().st_size<100000: raise RuntimeError("File MP4 terlalu kecil.")
-    blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),"style":"2D animated explainer with edited transitions, kinetic captions and synchronized sound design","voice":os.environ.get("AVF_TTS_PROVIDER",("ElevenLabs "+os.environ.get("ELEVENLABS_VOICE_ID","UFHqTMrq8xJwvZqvLPBv")) if os.environ.get("ELEVENLABS_API_KEY") else ("Microsoft neural Indonesian "+os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural"))),"scene_audio_durations":spoken,"scenes":scenes}
+    blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),"style":"brand-inspired JAECOO/OMODA SUV explainer, animated cinematic outro, kinetic captions and layered synchronized sound design","voice":os.environ.get("AVF_TTS_PROVIDER",("ElevenLabs "+os.environ.get("ELEVENLABS_VOICE_ID","UFHqTMrq8xJwvZqvLPBv")) if os.environ.get("ELEVENLABS_API_KEY") else ("Microsoft neural Indonesian "+os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural"))),"scene_audio_durations":spoken,"scenes":scenes}
     (WORK/"blueprint.json").write_text(json.dumps(blueprint,ensure_ascii=False,indent=2),encoding="utf-8")
     if os.environ.get("SMOKE_TEST")=="1":
         print(f"SMOKE PASS: {final['format']['duration']}s, {OUT.stat().st_size} bytes, neural narration + transitions + SFX.",flush=True); return
