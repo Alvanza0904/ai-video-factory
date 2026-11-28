@@ -49,6 +49,9 @@ jobs:
           OUTPUT_UPLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/output
           FAILURE_REPORT_URL: https://ai-video-factory-43b.pages.dev/api/jobs/failure
           EDGE_TTS_VOICE: id-ID-ArdiNeural
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: UFHqTMrq8xJwvZqvLPBv
+          ELEVENLABS_MODEL_ID: eleven_multilingual_v2
         run: python3 scripts/education_animation.py
       - name: Report failure
         if: failure()
