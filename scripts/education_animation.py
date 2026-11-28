@@ -194,86 +194,160 @@ def draw_person(d, cx, cy, phase):
 
 def draw_frame(scene, idx, total):
     p = idx / max(1,total-1)
-    img=Image.new("RGB",(W,H))
+    img=Image.new("RGB",(W,H),(12,20,31))
     d=ImageDraw.Draw(img)
-    top=(10,17,29); bottom=(19,35,51)
-    for y in range(H):
-        t=y/(H-1)
-        col=tuple(int(top[i]*(1-t)+bottom[i]*t) for i in range(3))
-        d.line((0,y,W,y),fill=col)
     accent="#B8F36A"; cyan="#65D8F2"; white="#F3F7FA"; muted="#A9B8C8"
-    # Animated particles and parallax accents add continuous motion between scene changes.
-    for j in range(14):
-        px=(j*71 + int(p*W*1.8)) % (W+30) - 15
-        py=(j*127 + int(math.sin(p*math.pi*2+j)*24)) % H
-        r=2+(j%3)
-        d.ellipse((px-r,py-r,px+r,py+r),fill="#29465A")
-    ring_shift=int(14*math.sin(p*math.pi*2))
-    d.ellipse((-150+ring_shift,210,170+ring_shift,530),outline="#203A4D",width=5)
-    d.ellipse((365,570,680,885),fill="#142B3A")
-    rr(d,(28,34,W-28,79),18,"#1B2A37")
-    d.text((48,47),"AUTO EDUCATION  /  EXPLAINED",font=font(15,True),fill=accent)
-    centered(d,scene["title"],112,font(29,True),white,470)
+    # Layered city / road background with continuous parallax.
+    for y in range(H):
+        t=y/H
+        col=tuple(int(a*(1-t)+b*t) for a,b in zip((13,25,39),(24,43,57)))
+        d.line((0,y,W,y),fill=col)
+    for j in range(11):
+        x=(j*63-int(p*95))%650-55
+        bh=120+(j*47)%190
+        d.rectangle((x,500-bh,x+42,500),fill="#1C3445",outline="#29495A")
+        for wy in range(4):
+            for wx in range(2):
+                d.rectangle((x+8+wx*17,510-bh+wy*35,x+14+wx*17,520-bh+wy*35),fill="#36566A")
+    # Moving road and dashed lane lines.
+    d.rectangle((0,590,W,745),fill="#263744")
+    d.line((0,665,W,665),fill="#DCE6E8",width=3)
+    for j in range(8):
+        x=(j*100-int(p*260))%650-40
+        d.rounded_rectangle((x,657,x+48,672),radius=5,fill="#E6E8DC")
+    # Small moving traffic gives every scene a sense of life.
+    for j in range(3):
+        cx=(j*245+int(p*260))%760-100
+        draw_car(d,cx,625,0.25, "#65D8F2" if j%2 else "#F6B35B",p*5+j)
+    # Header is compact; content owns the frame.
+    rr(d,(24,28,W-24,76),16,"#203545",outline="#3B586A")
+    d.text((42,43),"AUTO EXPLAINER  •  ANIMATED",font=font(14,True),fill=accent)
+    # Animated scene title enters from below, then settles.
+    title_y=104+int(24*(1-min(1,p*4)))
+    centered(d,scene["title"],title_y,font(27,True),white,470)
     v=scene["visual"]
-    cy=470
+    # Motion helpers.
+    def particle_path(x1,y1,x2,y2,count=7):
+        for k in range(count):
+            q=(p*1.7+k/count)%1
+            x=int(x1+(x2-x1)*q); y=int(y1+(y2-y1)*q)
+            r=4+(k%3)
+            d.ellipse((x-r,y-r,x+r,y+r),fill=accent,outline="#E8FFC0")
+    def component(box,label,fill,sub=None):
+        rr(d,box,20,fill,outline="#DCEAF0",width=3)
+        x1,y1,x2,y2=box
+        centered(d,label,y1+18,font(17,True),white,x2-x1-16)
+        if sub: centered(d,sub,y1+49,font(12),muted,x2-x1-12)
     if v in ("car","threecars","hybrid"):
-        draw_car(d, int(270+math.sin(p*math.pi*2)*42), cy, .88+0.025*math.sin(p*math.pi*2), accent, p*3)
+        # Driving car with wheel rotation, acceleration streaks and moving energy trail.
+        shift=int(-70+210*p)
+        for k in range(5):
+            xx=45+k*24+int(p*90)%35
+            d.line((xx,540,xx+18,540),fill=cyan,width=3)
+        draw_car(d,270+shift,470,0.95,accent,p*8)
+        rr(d,(55,570,485,625),15,"#1B3445",outline=cyan)
+        centered(d,"AKSELERASI  •  TORSI  •  GERAK",585,font(15,True),white,400)
         if v=="threecars":
             for j,label in enumerate(("BEV","HEV","PHEV")):
-                rr(d,(40+j*158,625,184+j*158,687),15,"#223B4D",outline=accent if j==0 else "#547084")
-                centered(d,label,644,font(20,True),white,125)
+                component((34+j*158,785,178+j*158,850),label,"#28475B")
         elif v=="hybrid":
-            rr(d,(105,625,435,704),20,"#223B4D",outline=cyan)
-            centered(d,"MESIN + MOTOR LISTRIK",650,font(17,True),white,300)
+            particle_path(80,690,455,690,9)
+            centered(d,"MESIN + MOTOR LISTRIK",710,font(18,True),white,420)
     elif v in ("battery","charging","temperature","chemistry"):
-        draw_battery(d,270,450,.25+.7*p,accent)
-        if v=="temperature":
-            d.arc((180,650,360,830),190,350,fill="#FF9B72",width=14)
-            centered(d,"SUHU • PENGGUNAAN • PERAWATAN",700,font(15,True),white,440)
-        elif v=="charging":
-            d.line((270,560,270,690),fill=cyan,width=9)
-            d.polygon([(270,690),(252,660),(288,660)],fill=cyan)
+        # Battery cells illuminate one by one; charge stream visibly enters.
+        x,y=105,330
+        rr(d,(x,y,x+330,y+210),28,"#DCE7EB",outline=white,width=5)
+        rr(d,(x+330,y+65,x+355,y+145),9,"#DCE7EB")
+        for k in range(6):
+            fill="#B8F36A" if k/6 < p else "#527D68"
+            bx=x+17+k*50
+            rr(d,(bx,y+18,bx+42,y+192),9,fill)
+            if k/6 < p:
+                d.ellipse((bx+13,y+65,bx+29,y+81),fill="#F6FFD8")
+        particle_path(20,435,100,435,6)
+        centered(d,"ENERGI TERSIMPAN DI DALAM SEL",575,font(17,True),white,470)
+        if v=="charging":
+            d.line((270,650,270,745),fill=cyan,width=10)
+            d.polygon([(250,730),(290,730),(270,765)],fill=cyan)
+            centered(d,"PENGISIAN DAYA",780,font(16,True),accent,400)
+        elif v=="temperature":
+            for k in range(4):
+                yy=630-k*30-int(p*20)
+                d.arc((180+k*10,yy,360-k*10,yy+55),190,350,fill="#FF986E",width=7)
+            centered(d,"PANTAU SUHU BATERAI",790,font(16,True),white,420)
     elif v in ("motor","energy","ac","dc","system","parts"):
-        draw_car(d,int(270+12*math.sin(p*math.pi*2)),590,.65,accent,p*3)
-        d.ellipse((190,330,350,490),outline=cyan,width=9)
-        d.arc((170,310,370,510),int(40+p*200),int(260+p*200),fill=accent,width=12)
-        d.polygon([(350,380),(370,400),(340,405)],fill=accent)
-        centered(d,{"motor":"MOTOR LISTRIK","energy":"ENERGI → GERAK","ac":"ARUS AC","dc":"ARUS DC","system":"SISTEM TERHUBUNG","parts":"KOMPONEN UTAMA"}[v],700,font(20,True),white,460)
+        # Three linked components show the energy path instead of a decorative ring.
+        y=390
+        component((22,y,166,y+130),"BATERAI","#28536A","ARUS DC")
+        component((198,y,342,y+130),"INVERTER","#36516D","ATUR DAYA")
+        component((374,y,518,y+130),"MOTOR","#28536A","PUTARAN")
+        particle_path(166,y+65,198,y+65,5)
+        particle_path(342,y+65,374,y+65,5)
+        if v in ("motor","energy"):
+            # Cutaway motor with rotating rotor, stator coils and torque arrows.
+            d.ellipse((125,590,415,880),fill="#223B4D",outline="#D7E7EF",width=8)
+            d.ellipse((158,623,382,847),outline=cyan,width=15)
+            d.ellipse((205,670,335,800),fill="#B8F36A",outline=white,width=5)
+            angle=p*math.pi*8
+            for k in range(8):
+                a=angle+k*math.pi/4
+                x1=270+math.cos(a)*45; y1=735+math.sin(a)*45
+                x2=270+math.cos(a)*98; y2=735+math.sin(a)*98
+                d.line((x1,y1,x2,y2),fill="#F6D27A",width=8)
+            d.arc((90,555,450,910),int(20+p*260),int(150+p*260),fill=accent,width=9)
+            d.polygon([(420,640),(449,655),(421,670)],fill=accent)
+            centered(d,"ROTOR BERPUTAR  •  TORSI MENGGERAKKAN RODA",885,font(13,True),white,500)
+        elif v=="ac":
+            for k in range(3):
+                pts=[]
+                for xx in range(40,500,5):
+                    yy=650+k*42+int(math.sin((xx/500*math.pi*5)-p*math.pi*8)*18)
+                    pts.append((xx,yy))
+                d.line(pts,fill=cyan if k==0 else accent,width=4)
+            centered(d,"ARUS BOLAK-BALIK",810,font(17,True),white,440)
+        elif v=="dc":
+            for k in range(8):
+                xx=50+k*58
+                d.rectangle((xx,690,xx+28,690+int(30+70*p)),fill=accent)
+            centered(d,"ARUS SEARAH MENUJU BATERAI",810,font(17,True),white,460)
     elif v=="question":
-        draw_person(d,270,470,p)
-        rr(d,(60,660,480,735),22,"#233A4B",outline=cyan)
-        centered(d,"YUK, KITA PELAJARI!",680,font(19,True),white,380)
+        draw_person(d,270,420,p)
+        # Speech bubble pulses in and out.
+        bob=int(8*math.sin(p*math.pi*4))
+        rr(d,(48,650+bob,492,740+bob),24,"#29485A",outline=cyan,width=4)
+        centered(d,"KOK BISA?  •  YUK, KITA BEDAH!",680+bob,font(19,True),white,410)
     elif v=="chart":
-        labels=("ENERGI","EFISIENSI","KONDISI")
-        for j,label in enumerate(labels):
-            x=72+j*137; base=650
-            height=int(85+65*(0.5+0.5*math.sin(p*math.pi*2+j*1.35)))
-            rr(d,(x,base-height,x+78,base),14,"#244255",outline=cyan if j==1 else "#547084")
-            d.text((x-2,base+22),label,font=font(13,True),fill=white)
-        d.line((58,675,482,675),fill="#668093",width=3)
-        d.ellipse((int(90+300*p),310,int(120+300*p),340),fill=accent)
-        centered(d,"FAKTOR YANG MEMPENGARUHI",720,font(17,True),white,450)
+        for j,label in enumerate(("ENERGI","EFISIENSI","KONDISI")):
+            x=65+j*145; base=740
+            height=int(60+150*min(1,max(0,p*1.8-j*.2)))
+            rr(d,(x,base-height,x+80,base),13,"#244255",outline=cyan if j==1 else "#547084")
+            centered(d,label,base+18,font(12,True),white,100)
+        centered(d,"FAKTOR YANG MEMPENGARUHI",810,font(17,True),white,460)
     elif v=="checklist":
         for j,label in enumerate(("KENALI TEKNOLOGINYA","CEK SPESIFIKASI","PAHAMI KEBUTUHAN")):
-            y=340+j*115
-            rr(d,(65,y,475,y+78),18,"#203747",outline=accent if j==0 else "#426073")
-            d.ellipse((88,y+22,122,y+56),fill=accent)
-            d.line((97,y+39,105,y+47,116,y+30),fill="#142334",width=5)
-            d.text((140,y+27),label,font=font(16,True),fill=white)
+            y=350+j*125
+            slide=int(60*(1-min(1,p*4)))
+            rr(d,(65+slide,y,475+slide,y+78),18,"#203747",outline=accent if j==0 else "#426073")
+            d.ellipse((88+slide,y+22,122+slide,y+56),fill=accent)
+            d.line((97+slide,y+39,105+slide,y+47,116+slide,y+30),fill="#142334",width=5)
+            d.text((140+slide,y+27),label,font=font(16,True),fill=white)
     else:
         draw_person(d,270,450,p)
-    # Short, readable two-line captions stay in a dedicated lower-third panel.
-    rr(d,(34,748,506,850),20,"#142535",outline="#3D566A",width=2)
-    cap=caption_lines(scene.get("narration",""),font(17,True),420)
-    line_y=766 if len(cap)==2 else 785
+    # Captions are clean lower-third labels, no oversized opaque slide card.
+    cap=caption_lines(scene.get("narration",""),font(16,True),450)
+    base_y=900 if len(cap)==1 else 870
     for line in cap:
-        box=d.textbbox((0,0),line,font=font(17,True))
-        d.text(((W-(box[2]-box[0]))/2,line_y),line,font=font(17,True),fill=white)
-        line_y+=27
-    # Kinetic accent: animated progress line and scene marker.
-    d.rounded_rectangle((45,865,495,876),radius=5,fill="#314353")
-    d.rounded_rectangle((45,865,45+int(450*p),876),radius=5,fill=accent)
-    d.text((46,895),f"{ACTIVE_BRAND}  •  PALEMBANG",font=font(14,True),fill=muted)
+        box=d.textbbox((0,0),line,font=font(16,True))
+        tw=box[2]-box[0]
+        rr(d,((W-tw)//2-14,base_y-5,(W+tw)//2+14,base_y+28),10,"#101D29",outline="#456073",width=1)
+        d.text(((W-tw)//2,base_y),line,font=font(16,True),fill=white)
+        base_y+=27
+    # Scene progress and floating kinetic markers.
+    d.rounded_rectangle((32,940,508,950),radius=5,fill="#314353")
+    d.rounded_rectangle((32,940,32+int(476*p),950),radius=5,fill=accent)
+    for k in range(3):
+        xx=45+k*225+int(p*45)
+        d.ellipse((xx,180+k*38,xx+9,189+k*38),fill=cyan if k%2 else accent)
     return img
 
 def make_subtitles(scenes, voice_duration):
@@ -334,6 +408,59 @@ def piper_voice(scene_texts):
                 combined.writeframes(silence)
     return output
 
+def make_sound_design(scene_durations, total_duration):
+    """Create original lightweight whoosh/pop/electric/motor SFX and a rhythmic music bed."""
+    import random, struct
+    rate=24000
+    count=int(total_duration*rate)
+    mix=[0.0]*count
+    music=[0.0]*count
+    # Soft upbeat electronic bed: bass pulse, chord pads and a restrained click beat.
+    chords=[(110.0,138.59,164.81),(98.0,123.47,146.83),(123.47,155.56,185.0),(110.0,138.59,164.81)]
+    for i in range(count):
+        t=i/rate
+        beat=int(t*2)%4
+        chord=chords[int(t/2)%len(chords)]
+        pad=sum(math.sin(2*math.pi*f*t)*0.22 for f in chord)/3
+        bass=math.sin(2*math.pi*(55 if beat in (0,2) else 65.4)*t)*0.20
+        pulse=max(0,1-(t*2%1))*0.06
+        music[i]=(pad+bass+pulse)*0.16
+    rng=random.Random(23)
+    cursor=0.0
+    for idx,duration in enumerate(scene_durations):
+        # Short whoosh on scene change, then a tactile pop; selected scenes get electric/motor texture.
+        events=[(cursor+0.04,"whoosh"),(cursor+0.32,"pop")]
+        if idx in (1,2,3,4,6): events.append((cursor+0.72,"electric" if idx in (1,3,6) else "motor"))
+        for at,kind in events:
+            start=int(at*rate)
+            length=int((0.42 if kind=="whoosh" else 0.18 if kind=="pop" else 0.55)*rate)
+            for j in range(length):
+                pos=start+j
+                if pos>=count: break
+                t=j/rate
+                env=(1-j/length)
+                if kind=="whoosh":
+                    val=(rng.random()*2-1)*env*env*0.23*math.sin(math.pi*j/length)
+                elif kind=="pop":
+                    val=math.sin(2*math.pi*(180+520*env)*t)*env*0.25
+                elif kind=="electric":
+                    val=(math.sin(2*math.pi*880*t)+0.35*math.sin(2*math.pi*1320*t))*env*0.10
+                else:
+                    val=math.sin(2*math.pi*(75+95*env)*t)*env*0.18
+                mix[pos]+=val
+        cursor+=duration
+    sfx_path=WORK/"sound-effects.wav"
+    music_path=WORK/"music-bed.wav"
+    for path,data,scale in ((sfx_path,mix,0.8),(music_path,music,0.75)):
+        with wave.open(str(path),"wb") as wf:
+            wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(rate)
+            chunk=bytearray()
+            for value in data:
+                sample=max(-32767,min(32767,int(value*scale*32767)))
+                chunk.extend(struct.pack("<h",sample))
+            wf.writeframes(chunk)
+    return sfx_path,music_path
+
 def main():
     global ACTIVE_BRAND
     WORK.mkdir(exist_ok=True)
@@ -376,11 +503,12 @@ def main():
     silent=WORK/"silent.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),
          "-c","copy","-movflags","+faststart",str(silent)])
-    music_expr=f"aevalsrc=0.018*sin(2*PI*220*t)+0.012*sin(2*PI*277.18*t)+0.008*sin(2*PI*329.63*t):s=48000:d={total_duration:.2f}"
+    scene_durations=[total_duration*w/total_words for w in word_counts]
+    sfx,music=make_sound_design(scene_durations,total_duration)
     vf="null"  # Captions are burned into each animated scene at a controlled size.
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio),
-         "-f","lavfi","-i",music_expr,"-filter_complex",
-         "[1:a]volume=1.0[voice];[2:a]lowpass=f=600,volume=0.018[bed];[voice][bed]amix=inputs=2:duration=first:dropout_transition=1,loudnorm=I=-16:TP=-1.5:LRA=11[a]",
+         "-i",str(music),"-i",str(sfx),"-filter_complex",
+         "[1:a]volume=1.0[voice];[2:a]volume=0.16[bed];[3:a]volume=0.42[fx];[voice][bed][fx]amix=inputs=3:duration=first:dropout_transition=1,loudnorm=I=-16:TP=-1.5:LRA=11[a]",
          "-vf",vf,"-map","0:v:0","-map","[a]","-t",f"{total_duration:.2f}",
          "-r","30","-c:v","libx264","-preset","veryfast","-crf","22","-c:a","aac","-b:a","160k",
          "-pix_fmt","yuv420p","-movflags","+faststart",str(OUT)])
@@ -391,7 +519,7 @@ def main():
     if OUT.stat().st_size<100000:
         raise RuntimeError("Quality check gagal: file MP4 terlalu kecil.")
     blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),
-        "style":"2D explainer + cartoon + motion graphics","voice":"Piper Indonesian news medium",
+        "style":"2D explainer + cartoon + motion graphics","voice":"Piper Indonesian medium (conversational pacing; limited expressiveness)",
         "scenes":scenes}
     (WORK/"blueprint.json").write_text(json.dumps(blueprint,ensure_ascii=False,indent=2),encoding="utf-8")
     if os.environ.get("SMOKE_TEST") == "1":
