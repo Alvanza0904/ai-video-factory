@@ -40,12 +40,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core
           python -m pip install --upgrade pip
-          pip install --only-binary=:all: pillow piper-tts
-      - name: Download Indonesian Piper voice
-        run: |
-          mkdir -p models
-          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx" -o models/id_ID-news_tts-medium.onnx
-          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx.json" -o models/id_ID-news_tts-medium.onnx.json
+          pip install --only-binary=:all: pillow edge-tts
       - name: Generate narration, 2D animation and final MP4
         env:
           JOB_ID: ${{ inputs.job_id }}
@@ -53,7 +48,7 @@ jobs:
           MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
           OUTPUT_UPLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/output
           FAILURE_REPORT_URL: https://ai-video-factory-43b.pages.dev/api/jobs/failure
-          PIPER_MODEL: models/id_ID-news_tts-medium.onnx
+          EDGE_TTS_VOICE: id-ID-ArdiNeural
         run: python3 scripts/education_animation.py
       - name: Report failure
         if: failure()
