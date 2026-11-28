@@ -410,7 +410,7 @@ def main():
     filters=[]; current="[0:v]"; accumulated=clip_durations[0]
     transitions=["smoothleft","fade","smoothright","wipeup","fadeblack","smoothleft","fade"]
     for i in range(1,len(clips)):
-        out=f"[v{i}]"; filters.append(f"{current}[{i}:v]xfade=transition={transitions[(i-1)%len(transitions)]}:duration=.28:offset={accumulated-.28:.3f}{out}")
+        out=f"[v{i}]"; filters.append(f"{current}[{i}:v]xfade=transition={transitions[(i-1)%len(transitions)]}:duration=0.28:offset={accumulated-.28:.3f}{out}")
         current=out; accumulated+=clip_durations[i]-.28
     edited=WORK/"edited-video.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y",*inputs,"-filter_complex",";".join(filters),"-map",current,"-an","-r","30","-c:v","libx264","-preset","veryfast","-crf","21","-pix_fmt","yuv420p",str(edited)])
