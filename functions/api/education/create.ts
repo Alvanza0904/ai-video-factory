@@ -1,6 +1,6 @@
 import { Env, dispatchToken, json, signJob, supabase, userFrom } from "../_shared";
 
-type Body = { brand?: string; topic?: string; duration?: number };
+type Body = { brand?: string; topic?: string; duration?: number; vehicleAssetKey?: string | null };
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const user = await userFrom(request, env);
   if (!user) return json({ error: "Sesi tidak valid. Silakan masuk kembali." }, 401);
@@ -14,6 +14,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const duration = Number(body.duration || 45);
   if (!brand || topic.length < 8 || ![30, 45, 60].includes(duration)) {
     return json({ error: "Pilih brand, topik minimal 8 karakter, dan durasi 30/45/60 detik." }, 400);
+  }
+
+  const vehicleAssetKey = body.vehicleAssetKey || null;
+  if (vehicleAssetKey) {
+    if (!vehicleAssetKey.startsWith("vehicle-assets/" + user.id + "/" + brand + "/") || vehicleAssetKey.includes("..")) return json({ error: "Foto kendaraan tidak valid untuk akun atau brand ini." }, 403);
+    const asset = await env.MEDIA_BUCKET.head(vehicleAssetKey);
+    if (!asset || !["image/jpeg","image/png","image/webp"].includes(asset.httpMetadata?.contentType || "")) return json({ error: "Foto kendaraan tidak ditemukan atau formatnya tidak didukung." }, 404);
   }
 
   const projectRes = await supabase(request, env, "/rest/v1/video_projects", {
@@ -31,7 +38,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     body: JSON.stringify({
       project_id: projectId, user_id: user.id, title: "Edukasi " + brand + " · " + topic.slice(0, 70),
       genre: "other", target_duration: duration, aspect_ratio: "9:16",
-      instructions: JSON.stringify({ module: "animated_education", brand, topic, style: "explainer_cartoon_motion_graphics", voice: "id_ID-news_tts-medium" }),
+      instructions: JSON.stringify({ module: "animated_education", brand, topic, style: "explainer_cartoon_motion_graphics", voice: "id_ID-news_tts-medium", vehicleAssetKey }),
       status: "queued", progress: 1
     })
   });
@@ -40,7 +47,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const jobId = jobs[0].id;
   const expires = String(Math.floor(Date.now() / 1000) + 2 * 60 * 60);
   const signature = await signJob(env, jobId, user.id, expires);
-  const manifest = { jobId, userId: user.id, projectId, expires, signature, brand, topic, duration, module: "animated_education" };
+  const manifest = { jobId, userId: user.id, projectId, expires, signature, brand, topic, duration, vehicleAssetKey, module: "animated_education" };
   await env.MEDIA_BUCKET.put("private-jobs/" + jobId + "/manifest.json", JSON.stringify(manifest), {
     httpMetadata: { contentType: "application/json" }
   });
