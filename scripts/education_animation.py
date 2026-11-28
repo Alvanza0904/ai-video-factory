@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path.cwd()
 WORK = ROOT / "education-work"
 OUT = ROOT / "ai-video-factory-final.mp4"
-W, H, FPS = 540, 960, 15
+W, H, FPS = 540, 960, 24
 MODEL = Path(os.environ.get("PIPER_MODEL", "models/id_ID-news_tts-medium.onnx"))
 ACTIVE_BRAND = "JAECOO"
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -318,8 +318,9 @@ def draw_frame(scene, idx, total):
         centered(d,line,panel_y,font(17,True),ink,444,max_lines=1); panel_y+=28
     d.rounded_rectangle((25,950,515,958),radius=4,fill="#C8D8D4")
     d.rounded_rectangle((25,950,25+int(490*p),958),radius=4,fill=teal)
-    zoom=1+0.025*math.sin(p*math.pi); nw,nh=int(W*zoom),int(H*zoom)
-    img=img.resize((nw,nh),Image.Resampling.LANCZOS); ox=(nw-W)//2+int(5*math.sin(p*math.pi*2)); oy=(nh-H)//2
+    push=0.018+0.026*math.sin(p*math.pi)**1.4
+    zoom=1+push; nw,nh=int(W*zoom),int(H*zoom)
+    img=img.resize((nw,nh),Image.Resampling.LANCZOS); ox=(nw-W)//2+int(8*math.sin(p*math.pi*2)); oy=(nh-H)//2+int(3*math.sin(p*math.pi))
     return img.crop((max(0,ox),max(0,oy),max(0,ox)+W,max(0,oy)+H))
 
 def make_subtitles(scenes, durations):
@@ -494,7 +495,7 @@ def main():
     print("Narration:", " ".join(x["narration"] for x in scenes),flush=True)
     audio,spoken=neural_voice([x["narration"] for x in scenes])
     clip_durations=[d+.48 for d in spoken]
-    total_video=sum(clip_durations)-.28*(len(clip_durations)-1)
+    total_video=sum(clip_durations)-.36*(len(clip_durations)-1)
     print(f"Neural voice {sum(spoken):.2f}s; edited video {total_video:.2f}s",flush=True)
     make_subtitles(scenes,spoken)
     clips=[]
@@ -507,10 +508,11 @@ def main():
     inputs=[]
     for clip in clips: inputs += ["-i",str(clip)]
     filters=[]; current="[0:v]"; accumulated=clip_durations[0]
-    transitions=["smoothleft","fade","smoothright","wipeup","fadeblack","smoothleft","fade"]
+    transition_duration=0.36
+    transitions=["fade","smoothleft","fade","smoothright","wipeup","fadeblack","smoothleft"]
     for i in range(1,len(clips)):
-        out=f"[v{i}]"; filters.append(f"{current}[{i}:v]xfade=transition={transitions[(i-1)%len(transitions)]}:duration=0.28:offset={accumulated-.28:.3f}{out}")
-        current=out; accumulated+=clip_durations[i]-.28
+        out=f"[v{i}]"; filters.append(f"{current}[{i}:v]xfade=transition={transitions[(i-1)%len(transitions)]}:duration={transition_duration:.2f}:offset={accumulated-transition_duration:.3f}{out}")
+        current=out; accumulated+=clip_durations[i]-transition_duration
     edited=WORK/"edited-video.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y",*inputs,"-filter_complex",";".join(filters),"-map",current,"-an","-r","30","-c:v","libx264","-preset","veryfast","-crf","21","-pix_fmt","yuv420p",str(edited)])
     sfx,music=make_sound_design(scenes,[d+.24 for d in spoken],total_video)
