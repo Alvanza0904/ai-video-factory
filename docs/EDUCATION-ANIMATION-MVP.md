@@ -1,7 +1,22 @@
-# AI Animated Education Factory — MVP
+# AI Animated Education Factory — Motion + Sound Upgrade
 
 ## What this module does
-Creates a vertical Indonesian educational animation from a topic without requiring user-uploaded footage. It uses hook-first conversational Indonesian scripts, an eight-beat explainer structure, Piper Indonesian TTS, Pillow-generated 2D scenes, animated diagrams and moving accents, FFmpeg composition, subtitles and a low-volume synthetic audio bed.
+Creates vertical Indonesian educational explainers with a hook-first script, scene-specific 2D motion, animated component diagrams, moving traffic and parallax city layers, kinetic labels, captions, and a synchronized audio mix.
+
+## Visual direction
+- 9:16 output at 1080 × 1920, H.264, 30 fps.
+- Each scene has its own visual treatment instead of one repeated static card.
+- Battery scenes animate individual cells and charging flow.
+- Electric drivetrain scenes show battery → inverter → motor, animated energy particles, a cutaway rotor, rotating spokes and torque cues.
+- Road scenes include moving traffic, wheel rotation, road markings and acceleration streaks.
+- Scene titles and labels enter with motion; the lower-third captions remain readable.
+- This is a procedural 2D motion-graphics renderer, not frame-by-frame generative video or a fully rigged character animation system.
+
+## Audio direction
+- Indonesian Piper narration uses a slower conversational pace and revised everyday-language scripts for supported topics.
+- Scene changes receive generated whoosh and pop cues; electrical and motor scenes receive matching electronic/motor textures.
+- An original synthesized rhythmic bed is mixed under narration and effects.
+- Important limitation: Piper remains a fixed voice and cannot reliably perform nuanced human emotion, laughter or expressive acting. The sound effects and music are procedurally synthesized, not licensed commercial sound libraries. Review the audio and licensing before commercial publication.
 
 ## Supported first topics
 - Regenerative braking
@@ -10,24 +25,20 @@ Creates a vertical Indonesian educational animation from a topic without requiri
 - AC vs DC charging
 - How an electric motor works
 
-Custom topics are accepted by the form, but the current deterministic script fallback is a generic explainer and must be fact-checked before publication. This MVP does not claim to have an LLM research director. No paid video-generation API is called.
+Custom topics are accepted, but the deterministic fallback is a generic explainer and must be fact-checked before publication.
 
 ## Architecture
-- Next.js `/education` mobile page
-- Cloudflare Pages Function `/api/education/create`
-- Existing Supabase Auth, `video_projects`, `editing_jobs`, and `render_outputs`
-- Existing R2 manifest and signed output-upload gateway
-- GitHub Actions `education-animation.yml`
-- Piper TTS + Pillow + FFmpeg on the GitHub runner
+- Next.js mobile page and existing Cloudflare Pages Functions.
+- Existing Supabase Auth, project/job tables, R2 manifest and signed output-upload gateway.
+- GitHub Actions runner with Python, Pillow, Piper and FFmpeg.
+- No paid video-generation API is called.
 
 ## Workflow
-1. User signs in on the existing dashboard and opens /education.
-2. The Pages Function creates a project and editing job, stores a signed manifest in R2, and dispatches the workflow.
-3. The runner downloads the Indonesian Piper voice, creates narration and animated scene frames, renders MP4, and uploads to the existing R2 output gateway.
-4. Existing `/api/jobs/status` detects the MP4, registers the output and marks the job completed.
-5. The mobile page polls status and displays the video player/download link.
+1. User starts a video job from the dashboard.
+2. The Pages Function creates a project and job, stores a signed manifest in R2, and dispatches GitHub Actions.
+3. The runner creates narration, scene-specific animated frames, generated music and synchronized SFX, then renders MP4.
+4. The output is uploaded through the existing R2 gateway.
+5. The dashboard detects the MP4 and displays the result.
 
-## Limits
-- GitHub Actions minutes, storage, Supabase, Cloudflare and Hugging Face availability are subject to their current free-tier limits.
-- The current upgrade adds a strong opening hook, step-by-step explanation, kinetic visual accents, moving car wheels, parallax particles, animated charts and more conversational wording. It is still a template-based 2D explainer, not a fully generative LLM director or character lip-sync engine. Piper is a fixed neural voice: pace and prosody parameters can be tuned, but it cannot reliably perform nuanced emotional acting. The target voice direction is warm, friendly, confident Indonesian; conversational rather than announcer-like; clear diction; medium-slow pacing; short natural pauses; lively emphasis on key terms; no hard-sell tone.
-- The selected Piper Indonesian voice is listed as MIT in the model repository, but its model card points to a dataset whose license is 'see source URL'. Treat this voice as experimental until its dataset rights are confirmed for commercial marketing use. Check every model and asset license before publication.
+## Remaining quality boundary
+This upgrade materially increases object motion and sound activity, but does not yet provide a true AI storyboard director, neural expressive voice acting, lip-sync, or hand-authored professional character rigs. A more natural expressive voice will require a different voice provider/model and verified usage rights. Every model and asset license must be checked before commercial use.
