@@ -10,6 +10,7 @@ OUT = ROOT / "ai-video-factory-final.mp4"
 W, H, FPS = 540, 960, 24
 MODEL = Path(os.environ.get("PIPER_MODEL", "models/id_ID-news_tts-medium.onnx"))
 ACTIVE_BRAND = "JAECOO"
+VEHICLE_IMAGE = None
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
@@ -260,7 +261,15 @@ def draw_frame(scene, idx, total):
         for k in range(8):
             x=(k*105-int(p*340))%680-70; d.rounded_rectangle((x,680,x+55,689),radius=4,fill="#FFFFFF")
         shift=int(-100+200*ease(p)); bounce=int(5*math.sin(p*math.pi*8))
-        draw_car(d,270+shift,520+bounce,1.22,lime,p*11)
+        if VEHICLE_IMAGE is not None and v == "car":
+            ref=VEHICLE_IMAGE.copy(); ref.thumbnail((440,300))
+            mask=Image.new("L",ref.size,0); ImageDraw.Draw(mask).rounded_rectangle((0,0,ref.width,ref.height),radius=22,fill=255)
+            x=(W-ref.width)//2; y=390+int((1-ease(p))*25)
+            d.rounded_rectangle((x-8,y-8,x+ref.width+8,y+ref.height+8),radius=28,fill="#FFFFFF",outline=teal,width=5)
+            img.paste(ref,(x,y),mask)
+            pill((65,735,475,790),ACTIVE_BRAND+" • FOTO KENDARAAN",navy,lime,16)
+        else:
+            draw_car(d,270+shift,520+bounce,1.22,lime,p*11)
         for k in range(6):
             x=25+k*23+int(p*100)%30; d.line((x,475,x+18,475),fill=teal,width=4)
         if v=="threecars":
@@ -519,7 +528,18 @@ def main():
     global ACTIVE_BRAND
     WORK.mkdir(exist_ok=True)
     manifest={"jobId":"smoke-test","userId":"smoke-test","expires":"0","signature":"0","brand":"JAECOO","topic":"regenerative braking","duration":30} if os.environ.get("SMOKE_TEST")=="1" else fetch_manifest()
+    global VEHICLE_IMAGE
     ACTIVE_BRAND=manifest["brand"]; topic=manifest["topic"]; brand=manifest["brand"]; duration=int(manifest["duration"])
+    VEHICLE_IMAGE = None
+    if manifest.get("vehicleAssetKey") and os.environ.get("VEHICLE_ASSET_URL"):
+        query=urllib.parse.urlencode({"job_id":manifest["jobId"],"user_id":manifest["userId"],"expires":manifest["expires"],"signature":manifest["signature"],"key":manifest["vehicleAssetKey"]})
+        request=urllib.request.Request(os.environ["VEHICLE_ASSET_URL"]+"?"+query)
+        with urllib.request.urlopen(request,timeout=30) as response:
+            suffix=".png" if "png" in response.headers.get("Content-Type","") else ".jpg"
+            image_path=WORK/("vehicle-reference"+suffix)
+            image_path.write_bytes(response.read())
+        VEHICLE_IMAGE=Image.open(image_path).convert("RGB")
+        print("Vehicle photo reference loaded for render.",flush=True)
     scenes=choose_script(topic,duration)
     # Mandatory branded outro on every generated video.
     scenes.append({
