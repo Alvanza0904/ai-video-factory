@@ -121,19 +121,34 @@ def choose_script(topic, duration):
 def font(size, bold=False):
     return ImageFont.truetype(BOLD if bold else FONT, size)
 
-def centered(draw, text, y, fnt, fill, maxw=470):
-    words, lines, line = text.split(), [], ""
-    for word in words:
-        test = (line + " " + word).strip()
-        if draw.textbbox((0,0), test, font=fnt)[2] <= maxw: line = test
-        else:
-            if line: lines.append(line)
-            line = word
-    if line: lines.append(line)
+def centered(draw, text, y, fnt, fill, maxw=470, max_lines=2):
+    """Wrap, shrink and clamp every label so text never spills into nearby UI."""
+    words = str(text).split()
+    size = fnt.size
+    while size >= 12:
+        fitted = font(size, getattr(fnt, "path", "") == BOLD)
+        lines, line = [], ""
+        for word in words:
+            test = (line + " " + word).strip()
+            if draw.textbbox((0,0), test, font=fitted)[2] <= maxw:
+                line = test
+            else:
+                if line: lines.append(line)
+                line = word
+        if line: lines.append(line)
+        if len(lines) <= max_lines:
+            break
+        size -= 1
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        last = lines[-1]
+        while last and draw.textbbox((0,0), last+"…", font=fitted)[2] > maxw:
+            last = last[:-1]
+        lines[-1] = last.rstrip()+"…"
     for ln in lines:
-        box = draw.textbbox((0,0), ln, font=fnt)
-        draw.text(((W-(box[2]-box[0]))/2, y), ln, font=fnt, fill=fill)
-        y += fnt.size + 10
+        box = draw.textbbox((0,0), ln, font=fitted)
+        draw.text(((W-(box[2]-box[0]))/2, y), ln, font=fitted, fill=fill)
+        y += fitted.size + 5
     return y
 
 def caption_lines(text, fnt, max_width=460):
@@ -147,10 +162,10 @@ def caption_lines(text, fnt, max_width=460):
             if line: lines.append(line)
             line=word
     if line: lines.append(line)
-    if len(lines)>3:
-        lines=lines[:3]
+    if len(lines)>2:
+        lines=lines[:2]
         last=lines[-1]
-        while last and probe.textbbox((0,0),last+"…",font=fnt)[2]>max_width:
+        while last and probe.textbbox((0,1),last+"…",font=fnt)[2]>max_width:
             last=last[:-1]
         lines[-1]=last.rstrip()+"…"
     return lines
@@ -204,8 +219,8 @@ def draw_frame(scene, idx, total):
     d.rectangle((0,0,W,165),fill=navy)
     rr(d,(25,22,515,57),12,"#234657")
     d.text((42,31),"EXPLAINER LAB  /  "+ACTIVE_BRAND,font=font(12,True),fill=lime)
-    title_y=82+int(18*(1-ease(p*4)))
-    centered(d,scene["title"],title_y,font(25,True),"#FFFFFF",470)
+    title_y=78+int(12*(1-ease(p*3)))
+    centered(d,scene["title"],title_y,font(23,True),"#FFFFFF",460,max_lines=2)
     v=scene["visual"]
     def pill(box,label,fill=teal,fg="#FFFFFF",fs=15):
         rr(d,box,16,fill); x1,y1,x2,y2=box
@@ -290,12 +305,17 @@ def draw_frame(scene, idx, total):
             d.text((137+slide,y+29),label,font=font(15,True),fill="#FFFFFF")
     else: draw_person(d,270,440,p)
     words=scene.get("narration","").split()
-    chunks=[" ".join(words[i:i+7]) for i in range(0,len(words),7)] or [""]
-    active_chunk=min(len(chunks)-1,int(p*len(chunks)))
-    cap=caption_lines(chunks[active_chunk],font(18,True),460)[:2]
-    panel_y=824; rr(d,(22,808,518,940),18,"#FFFFFF",outline="#C7DAD6",width=2)
+    chunks=[" ".join(words[i:i+5]) for i in range(0,len(words),5)] or [""]
+    weights=[max(1,sum(len(w) for w in chunk.split())) for chunk in chunks]
+    total_weight=sum(weights); target=p*total_weight; acc=0; active_chunk=0
+    for ci,weight in enumerate(weights):
+        if target < acc+weight:
+            active_chunk=ci; break
+        acc+=weight
+    cap=caption_lines(chunks[active_chunk],font(17,True),444)
+    panel_y=832; rr(d,(22,808,518,940),18,"#FFFFFF",outline="#C7DAD6",width=2)
     for line in cap:
-        centered(d,line,panel_y,font(18,True),ink,460); panel_y+=27
+        centered(d,line,panel_y,font(17,True),ink,444,max_lines=1); panel_y+=28
     d.rounded_rectangle((25,950,515,958),radius=4,fill="#C8D8D4")
     d.rounded_rectangle((25,950,25+int(490*p),958),radius=4,fill=teal)
     zoom=1+0.025*math.sin(p*math.pi); nw,nh=int(W*zoom),int(H*zoom)
@@ -322,7 +342,7 @@ def neural_voice(scene_texts):
     clips=[]; durations=[]; voice=os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural")
     for index,text in enumerate(scene_texts,1):
         mp3=WORK/f"voice-{index:02d}.mp3"; wav=WORK/f"voice-{index:02d}.wav"
-        proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",voice,"--rate","+5%","--pitch","+1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
+        proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",voice,"--rate","-4%","--pitch","-1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
         if proc.returncode or not mp3.exists() or mp3.stat().st_size<1000:
             raise RuntimeError("Neural TTS gagal: "+proc.stderr[-500:])
         run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(mp3),"-ar","48000","-ac","1","-c:a","pcm_s16le",str(wav)])
@@ -338,48 +358,65 @@ def neural_voice(scene_texts):
             if i<len(clips)-1: combined.writeframes(silence)
     return output,durations
 
-def make_sound_design(scene_durations, total_duration):
-    """Build clearly audible original whoosh, impact, electric and motor cues plus a rhythmic bed."""
+def make_sound_design(scenes, scene_durations, total_duration):
+    """Quiet, scene-aware sound cues; narration remains the clear foreground."""
     import random, struct
     rate=24000; count=int(total_duration*rate)
-    fx=[0.0]*count; music=[0.0]*count; rng=random.Random(37)
-    # Music: light electronic pulse, bass, kick and crisp off-beat hats.
+    fx=[0.0]*count; music=[0.0]*count; rng=random.Random(91)
+    # Soft harmonic bed only: no constant kick, hats or busy rhythmic pulse.
     chords=[(110.0,138.59,164.81),(98.0,123.47,146.83),(123.47,155.56,185.0),(110.0,138.59,164.81)]
     for i in range(count):
-        t=i/rate; beat=int(t*2); phase=(t*2)%1
-        chord=chords[int(t/2)%4]
-        pad=sum(math.sin(2*math.pi*f*t)*.18 for f in chord)/3
-        bass=math.sin(2*math.pi*(55 if beat%2==0 else 65.4)*t)*(.22*(1-phase))
-        kick=math.sin(2*math.pi*(90-45*min(1,phase*5))*t)*(.38*math.exp(-phase*9)) if phase<.55 else 0
-        hat=(rng.random()*2-1)*.045 if (i%(rate//4))<3 else 0
-        music[i]=(pad*.45+bass*.55+kick*.55+hat)*.34
+        t=i/rate; chord=chords[int(t/4)%len(chords)]
+        pad=sum(math.sin(2*math.pi*f*t + .12*math.sin(2*math.pi*.12*t)) for f in chord)/3
+        shimmer=math.sin(2*math.pi*440*t)*.08
+        swell=.72+.28*math.sin(2*math.pi*.07*t)
+        music[i]=(pad*.20+shimmer*.12)*swell
     cursor=0.0
-    for idx,duration in enumerate(scene_durations):
-        events=[(cursor+.02,"whoosh"),(cursor+.26,"impact"),(cursor+.62,"click")]
-        if idx in (1,2,3,4,6): events.append((cursor+.78,"electric" if idx in (1,3,6) else "motor"))
-        for at,kind in events:
-            start=int(at*rate)
-            length=int({"whoosh":.48,"impact":.22,"click":.09,"electric":.62,"motor":.72}[kind]*rate)
+    cue_map={
+      "car":("soft_whoosh",.18,.30),
+      "battery":("low_energy",.22,.42),
+      "charging":("electric",.16,.38),
+      "temperature":("soft_whoosh",.14,.26),
+      "chemistry":("low_energy",.12,.34),
+      "motor":("motor",.20,.52),
+      "energy":("motor",.16,.42),
+      "ac":("electric",.13,.34),
+      "dc":("electric",.13,.34),
+      "system":("soft_whoosh",.10,.25),
+      "checklist":("soft_tick",.10,.12),
+      "chart":("soft_tick",.09,.12),
+      "question":("soft_whoosh",.13,.28),
+      "threecars":("soft_whoosh",.12,.26),
+      "hybrid":("low_energy",.12,.28),
+      "parts":("soft_tick",.09,.12)
+    }
+    for scene,duration in zip(scenes,scene_durations):
+        visual=scene.get("visual","")
+        cue=cue_map.get(visual)
+        if cue:
+            kind,level,length_s=cue
+            # One understated cue near the visual reveal, not a stack of effects per scene.
+            at=cursor+min(.38,max(.10,duration*.18))
+            start=int(at*rate); length=int(length_s*rate)
             for j in range(length):
                 pos=start+j
                 if pos>=count: break
-                t=j/rate; q=j/length; env=(1-q)**1.5
-                if kind=="whoosh":
-                    val=(rng.random()*2-1)*env*.72*math.sin(math.pi*q)
-                elif kind=="impact":
-                    val=(math.sin(2*math.pi*(115-65*q)*t)*.75+(rng.random()*2-1)*.12)*env
-                elif kind=="click":
-                    val=(rng.random()*2-1)*env*.52
+                t=j/rate; q=j/max(1,length); env=(1-q)**2
+                if kind=="soft_whoosh":
+                    val=(rng.random()*2-1)*math.sin(math.pi*q)*env
+                elif kind=="low_energy":
+                    val=(math.sin(2*math.pi*(92+18*q)*t)+.22*math.sin(2*math.pi*184*t))*env
                 elif kind=="electric":
-                    gate=.55+.45*math.sin(2*math.pi*18*t)
-                    val=(math.sin(2*math.pi*740*t)+.55*math.sin(2*math.pi*1120*t)+.3*math.sin(2*math.pi*1480*t))*env*.34*gate
+                    val=(math.sin(2*math.pi*520*t)+.28*math.sin(2*math.pi*780*t))*env
+                elif kind=="motor":
+                    freq=62+24*math.sin(2*math.pi*q)
+                    val=(math.sin(2*math.pi*freq*t)+.18*math.sin(2*math.pi*freq*2*t))*env
                 else:
-                    freq=70+150*q
-                    val=(math.sin(2*math.pi*freq*t)+.35*math.sin(2*math.pi*freq*2*t))*env*.52
-                fx[pos]+=val
-        cursor+=duration
+                    val=(rng.random()*2-1)*env*.22
+                fx[pos]+=val*level
+        cursor+=duration+.24
     sfx_path=WORK/"sound-effects.wav"; music_path=WORK/"music-bed.wav"
-    for path,data,scale in ((sfx_path,fx,.95),(music_path,music,.85)):
+    for path,data,scale in ((sfx_path,fx,.48),(music_path,music,.36)):
         with wave.open(str(path),"wb") as wf:
             wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(rate)
             chunk=bytearray()
@@ -418,9 +455,9 @@ def main():
         current=out; accumulated+=clip_durations[i]-.28
     edited=WORK/"edited-video.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y",*inputs,"-filter_complex",";".join(filters),"-map",current,"-an","-r","30","-c:v","libx264","-preset","veryfast","-crf","21","-pix_fmt","yuv420p",str(edited)])
-    sfx,music=make_sound_design([d+.24 for d in spoken],total_video)
+    sfx,music=make_sound_design(scenes,[d+.24 for d in spoken],total_video)
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(edited),"-i",str(audio),"-i",str(music),"-i",str(sfx),"-filter_complex",
-         "[1:a]volume=1.12,acompressor=threshold=-18dB:ratio=2.2:attack=15:release=180[voice];[2:a]volume=.24,lowpass=f=9000[bed];[3:a]volume=1.35,highpass=f=100[fx];[voice][bed][fx]amix=inputs=3:duration=longest:dropout_transition=1,loudnorm=I=-15:TP=-1.0:LRA=10,alimiter=limit=.95[a]",
+         "[1:a]highpass=f=75,volume=1.0,acompressor=threshold=-20dB:ratio=2:attack=18:release=220[voice];[2:a]lowpass=f=4200,volume=.15[bedin];[bedin][voice]sidechaincompress=threshold=0.025:ratio=8:attack=25:release=420[bed];[3:a]lowpass=f=5000,highpass=f=90,volume=.48[fx];[voice][bed][fx]amix=inputs=3:duration=longest:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=.92[a]",
          "-map","0:v:0","-map","[a]","-t",f"{total_video:.2f}","-r","30","-c:v","copy","-c:a","aac","-b:a","192k","-pix_fmt","yuv420p","-movflags","+faststart",str(OUT)])
     final=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration,size:stream=codec_name,width,height","-of","json",str(OUT)]))
     video=next((x for x in final["streams"] if x.get("codec_name")=="h264"),None)
