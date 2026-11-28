@@ -235,9 +235,10 @@ def draw_frame(scene, idx, total):
         draw_car(d,270+shift,520+bounce,1.22,lime,p*11)
         for k in range(6):
             x=25+k*23+int(p*100)%30; d.line((x,475,x+18,475),fill=teal,width=4)
-        pill((65,770,475,825),"TORSI  •  AKSELERASI  •  GERAK",navy,lime,16)
         if v=="threecars":
-            for j,label in enumerate(("BEV","HEV","PHEV")): pill((28+j*165,850,178+j*165,905),label,teal,"#FFFFFF",17)
+            for j,label in enumerate(("BEV","HEV","PHEV")): pill((28+j*165,735,178+j*165,790),label,teal,"#FFFFFF",17)
+        else:
+            pill((65,735,475,790),"TORSI  •  AKSELERASI  •  GERAK",navy,lime,16)
         elif v=="hybrid": particles(70,700,470,700,12)
     elif v in ("battery","charging","temperature","chemistry"):
         bx,by=85,340; rr(d,(bx,by,bx+370,by+235),30,navy,outline="#FFFFFF",width=6)
@@ -259,16 +260,16 @@ def draw_frame(scene, idx, total):
             pill(box,label,navy,lime,15); x1,y1,x2,y2=box; centered(d,sub,y1+68,font(12,True),"#D6E6E5",x2-x1-12)
         particles(164,y+55,177,y+55,5); particles(363,y+55,376,y+55,5,.4); arrow(165,y+140,375,y+140)
         if v in ("motor","energy"):
-            motor(270,650); pill((72,825,468,875),"ROTOR BERPUTAR  •  TORSI",navy,lime,16)
+            motor(270,650); pill((72,735,468,790),"ROTOR BERPUTAR  •  TORSI",navy,lime,16)
         elif v=="ac":
             for k in range(3):
                 pts=[(xx,620+k*48+int(math.sin(xx/475*math.pi*5-p*math.pi*9)*22)) for xx in range(35,510,4)]
                 d.line(pts,fill=teal if k==0 else blue,width=5)
-            pill((100,820,440,875),"ARUS BOLAK-BALIK",navy,lime,16)
+            pill((100,735,440,790),"ARUS BOLAK-BALIK",navy,lime,16)
         elif v=="dc":
             for k in range(9):
                 xx=42+k*54; h=45+int(70*ease(p*1.5-k*.09)); d.rounded_rectangle((xx,790-h,xx+27,790),radius=6,fill=teal)
-            pill((85,825,455,875),"ARUS SEARAH",navy,lime,16)
+            pill((85,735,455,790),"ARUS SEARAH",navy,lime,16)
         else: pill((80,620,460,690),"KONTROL DAYA MENYESUAIKAN TENAGA",navy,lime,14)
     elif v=="question":
         draw_person(d,270,440,p); pulse=int(8*math.sin(p*math.pi*5))
@@ -278,7 +279,7 @@ def draw_frame(scene, idx, total):
         for j,label in enumerate(("ENERGI","EFISIENSI","KONDISI")):
             x=65+j*145; base=740; h=int(55+145*ease(p*1.6-j*.18))
             rr(d,(x,base-h,x+80,base),12,teal if j==1 else navy); centered(d,label,base+17,font(12,True),ink,100)
-        centered(d,"FAKTOR YANG MEMPENGARUHI",800,font(16,True),ink,450)
+        centered(d,"FAKTOR YANG MEMPENGARUHI",765,font(16,True),ink,450)
     elif v=="checklist":
         for j,label in enumerate(("KENALI TEKNOLOGINYA","CEK SPESIFIKASI","PAHAMI KEBUTUHAN")):
             y=355+j*135; slide=int(70*(1-ease(p*4-j*.12)))
@@ -288,7 +289,7 @@ def draw_frame(scene, idx, total):
             d.text((137+slide,y+29),label,font=font(15,True),fill="#FFFFFF")
     else: draw_person(d,270,440,p)
     cap=caption_lines(scene.get("narration",""),font(18,True),460)[:3]
-    panel_y=865-(len(cap)-1)*29; rr(d,(22,panel_y-15,518,945),18,"#FFFFFF",outline="#C7DAD6",width=2)
+    panel_y=824; rr(d,(22,808,518,940),18,"#FFFFFF",outline="#C7DAD6",width=2)
     for line in cap:
         centered(d,line,panel_y,font(18,True),ink,460); panel_y+=27
     d.rounded_rectangle((25,950,515,958),radius=4,fill="#C8D8D4")
