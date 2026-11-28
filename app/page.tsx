@@ -17,7 +17,8 @@ const TOPICS = [
 type Session = { access_token: string; refresh_token?: string; expires_at?: number; user: { id: string; email?: string } };
 type AuthPayload = { access_token?: string; refresh_token?: string; expires_in?: number; user?: Session["user"]; msg?: string; message?: string; error_description?: string };
 type Job = { id: string; project_id: string; title: string | null; status: string; progress: number; error_message: string | null; target_duration: number | null; created_at: string; instructions: string; outputUrl?: string | null; filename?: string; size_bytes?: number };
-type StatusPayload = { job?: { status: string; progress: number; error_message?: string | null }; outputUrl?: string | null; error?: string };\ntype VehicleAsset = { key: string; brand: "JAECOO" | "OMODA"; model: string; filename: string; size: number; uploadedAt: string };
+type StatusPayload = { job?: { status: string; progress: number; error_message?: string | null }; outputUrl?: string | null; error?: string };
+type VehicleAsset = { key: string; brand: "JAECOO" | "OMODA"; model: string; filename: string; size: number; uploadedAt: string };
 
 function brandOf(job: Job) {
   try { return JSON.parse(job.instructions || "{}").brand === "OMODA" ? "OMODA" : "JAECOO"; } catch { return "JAECOO"; }
@@ -49,7 +50,12 @@ export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [folder, setFolder] = useState<"OMODA" | "JAECOO" | null>(null);
-  const [activeJobId, setActiveJobId] = useState("");\n  const [assets, setAssets] = useState<VehicleAsset[]>([]);\n  const [assetBrand, setAssetBrand] = useState<"JAECOO" | "OMODA">("JAECOO");\n  const [assetModel, setAssetModel] = useState("J5");\n  const [selectedAsset, setSelectedAsset] = useState("");\n  const [assetBusy, setAssetBusy] = useState(false);
+  const [activeJobId, setActiveJobId] = useState("");
+  const [assets, setAssets] = useState<VehicleAsset[]>([]);
+  const [assetBrand, setAssetBrand] = useState<"JAECOO" | "OMODA">("JAECOO");
+  const [assetModel, setAssetModel] = useState("J5");
+  const [selectedAsset, setSelectedAsset] = useState("");
+  const [assetBusy, setAssetBusy] = useState(false);
 
   const refreshToken = useCallback(async (current: Session): Promise<Session | null> => {
     if (!current.refresh_token) return null;
@@ -221,7 +227,8 @@ export default function Home() {
         <nav className="studio-tabs">
           <button className={tab === "generate" ? "selected" : ""} onClick={() => setTab("generate")}><Plus size={17}/> Generate Animasi</button>
           <button className={tab === "process" ? "selected" : ""} onClick={() => { setTab("process"); void loadJobs(); }}><Activity size={17}/> Proses Produksi <i>{activeJobs.length}</i></button>
-          <button className={tab === "library" ? "selected" : ""} onClick={() => { setTab("library"); setFolder(null); void loadJobs(); }}><Folder size={17}/> Hasil Produksi <i>{completedJobs.length}</i></button>\n          <button className={tab === "assets" ? "selected" : ""} onClick={() => { setTab("assets"); void loadAssets(); }}><Video size={17}/> Aset Kendaraan <i>{assets.length}</i></button>
+          <button className={tab === "library" ? "selected" : ""} onClick={() => { setTab("library"); setFolder(null); void loadJobs(); }}><Folder size={17}/> Hasil Produksi <i>{completedJobs.length}</i></button>
+          <button className={tab === "assets" ? "selected" : ""} onClick={() => { setTab("assets"); void loadAssets(); }}><Video size={17}/> Aset Kendaraan <i>{assets.length}</i></button>
         </nav>
 
         {tab === "generate" && <section className="studio-grid">
@@ -233,7 +240,8 @@ export default function Home() {
             <select value={topic} onChange={event => { setTopic(event.target.value); setCustomTopic(""); }}>{TOPICS.map(([label, value]) => <option key={value} value={value}>{label}</option>)}</select>
             <label>Atau masukkan ide sendiri</label>
             <textarea value={customTopic} onChange={event => setCustomTopic(event.target.value)} placeholder="Contoh: bagaimana teknologi hybrid bekerja saat perjalanan jauh?"/>
-            <label>Foto kendaraan (opsional)</label><select value={selectedAsset} onChange={event => setSelectedAsset(event.target.value)}><option value="">Gunakan ilustrasi animasi</option>{assets.filter(item => item.brand === brand).map(item => <option key={item.key} value={item.key}>{item.brand} {item.model} · {item.filename}</option>)}</select><button type="button" className="studio-link" onClick={() => setTab("assets")}>＋ Kelola / unggah foto kendaraan</button>\n            <label>Durasi video</label>
+            <label>Foto kendaraan (opsional)</label><select value={selectedAsset} onChange={event => setSelectedAsset(event.target.value)}><option value="">Gunakan ilustrasi animasi</option>{assets.filter(item => item.brand === brand).map(item => <option key={item.key} value={item.key}>{item.brand} {item.model} · {item.filename}</option>)}</select><button type="button" className="studio-link" onClick={() => setTab("assets")}>＋ Kelola / unggah foto kendaraan</button>
+            <label>Durasi video</label>
             <div className="duration-picker">{["30", "45", "60"].map(value => <button key={value} className={duration === value ? "chosen" : ""} onClick={() => setDuration(value)}>{value} detik</button>)}</div>
             <div className="visual-style"><Film size={19}/><div><b>2D Explainer + Cartoon Motion Graphics</b><span>Ilustrasi bergerak, transisi adegan, narasi Bahasa Indonesia, dan subtitle.</span></div></div>
             <button className="studio-primary generate-button" disabled={busy} onClick={generate}>{busy ? <RefreshCw className="spin" size={18}/> : <Sparkles size={18}/>} {busy ? "Menyiapkan produksi…" : "Mulai Generate Animasi"}</button>
@@ -250,7 +258,8 @@ export default function Home() {
           <article className="studio-panel asset-upload-panel"><label>Brand kendaraan</label><div className="brand-picker"><button className={assetBrand==="JAECOO"?"chosen":""} onClick={()=>{setAssetBrand("JAECOO");setAssetModel("J5");}}>JAECOO</button><button className={assetBrand==="OMODA"?"chosen":""} onClick={()=>{setAssetBrand("OMODA");setAssetModel("C5");}}>OMODA</button></div><label>Model</label><select value={assetModel} onChange={e=>setAssetModel(e.target.value)}>{(assetBrand==="JAECOO"?["J5","J7","J7 SHS-P ARDIS","J8 SHS-P ARDIS"]:["C5","C7","E5","O4"]).map(m=><option key={m}>{m}</option>)}</select><label>Foto kendaraan · JPG / PNG / WebP</label><input type="file" accept="image/jpeg,image/png,image/webp" disabled={assetBusy} onChange={e=>{void uploadVehicleAsset(e.target.files?.[0]);e.currentTarget.value="";}}/>{assetBusy&&<p>Mengunggah foto…</p>}</article>
           <div className="video-grid">{assets.length===0?<div className="empty-state"><Video size={28}/><b>Belum ada foto kendaraan</b><span>Pilih foto mobil dari galeri untuk mulai.</span></div>:assets.map(item=><article className="video-card" key={item.key}><div className="asset-placeholder">{item.brand} · {item.model}</div><h3>{item.filename}</h3><p>{(item.size/1048576).toFixed(1)} MB</p><button className="studio-secondary" onClick={()=>{setBrand(item.brand);setSelectedAsset(item.key);setTab("generate");}}>Pakai untuk video</button><button className="studio-link" onClick={()=>void deleteVehicleAsset(item.key)}>Hapus aset</button></article>)}</div>
         </section>}
-\n        {tab === "process" && <section className="studio-section">
+
+        {tab === "process" && <section className="studio-section">
           <div className="section-head"><div><span className="studio-eyebrow">02 / LIVE MONITOR</span><h2>Proses produksi</h2><p>Pantau antrean dan progres render video animasi.</p></div><button className="refresh-button" onClick={() => void loadJobs()} disabled={loadingJobs}><RefreshCw size={16}/> Perbarui</button></div>
           {loadingJobs ? <div className="empty-state"><RefreshCw className="spin" size={24}/>Memuat proses…</div> : activeJobs.length === 0 && failedJobs.length === 0 ? <div className="empty-state"><Activity size={30}/><b>Belum ada proses aktif</b><span>Mulai generate animasi untuk melihat prosesnya di sini.</span><button className="studio-secondary" onClick={() => setTab("generate")}>Buat video pertama</button></div> : <div className="job-list">{[...activeJobs, ...failedJobs].map(job => <article className="job-card" key={job.id}><div className="job-top"><span className={"job-state " + (job.status === "failed" ? "bad" : "working")}>{job.status === "failed" ? <XCircle size={14}/> : <Clock3 size={14}/>} {statusLabel(job.status)}</span><time>{dateLabel(job.created_at)}</time></div><h3>{job.title || "Video animasi " + brandOf(job)}</h3><p>{brandOf(job)} · {job.target_duration || 45} detik · 9:16</p>{job.status === "failed" ? <div className="error-box">{job.error_message || "Produksi gagal. Coba buat ulang."}</div> : <div className="job-progress"><div><span>Progres render</span><b>{job.progress || 0}%</b></div><i><span style={{ width: Math.max(0, Math.min(100, job.progress || 0)) + "%" }}/></i></div>}</article>)}</div>}
         </section>}
