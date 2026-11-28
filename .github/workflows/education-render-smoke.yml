@@ -32,6 +32,9 @@ jobs:
         env:
           SMOKE_TEST: "1"
           EDGE_TTS_VOICE: id-ID-ArdiNeural
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: UFHqTMrq8xJwvZqvLPBv
+          ELEVENLABS_MODEL_ID: eleven_multilingual_v2
         run: python3 scripts/education_animation.py
       - name: Upload sample video
         uses: actions/upload-artifact@v4
