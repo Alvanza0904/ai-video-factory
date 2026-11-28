@@ -279,7 +279,7 @@ def draw_frame(scene, idx, total):
         centered(d,"FAKTOR YANG MEMPENGARUHI",800,font(16,True),ink,450)
     elif v=="checklist":
         for j,label in enumerate(("KENALI TEKNOLOGINYA","CEK SPESIFIKASI","PAHAMI KEBUTUHAN")):
-            y=355+j*135; slide=int(70*(1-ease(p*4-j*.12))
+            y=355+j*135; slide=int(70*(1-ease(p*4-j*.12)))
             rr(d,(50+slide,y,490+slide,y+82),20,navy,outline=teal,width=3)
             d.ellipse((72+slide,y+23,116+slide,y+59),fill=lime)
             d.line((82+slide,y+41,92+slide,y+50,108+slide,y+31),fill=navy,width=5)
@@ -293,7 +293,7 @@ def draw_frame(scene, idx, total):
     d.rounded_rectangle((25,950,25+int(490*p),958),radius=4,fill=teal)
     zoom=1+0.025*math.sin(p*math.pi); nw,nh=int(W*zoom),int(H*zoom)
     img=img.resize((nw,nh),Image.Resampling.LANCZOS); ox=(nw-W)//2+int(5*math.sin(p*math.pi*2)); oy=(nh-H)//2
-    return img.crop((max(0,ox),max(0,oy),max(0,ox)+W,max(0,oy)+H)
+    return img.crop((max(0,ox),max(0,oy),max(0,ox)+W,max(0,oy)+H))
 
 def make_subtitles(scenes, voice_duration):
     total_words=sum(max(1,len(s["narration"].split())) for s in scenes)
