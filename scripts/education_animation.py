@@ -239,7 +239,7 @@ def draw_frame(scene, idx, total):
             for j,label in enumerate(("BEV","HEV","PHEV")): pill((28+j*165,735,178+j*165,790),label,teal,"#FFFFFF",17)
         else:
             pill((65,735,475,790),"TORSI  •  AKSELERASI  •  GERAK",navy,lime,16)
-        elif v=="hybrid": particles(70,700,470,700,12)
+        if v=="hybrid": particles(70,700,470,700,12)
     elif v in ("battery","charging","temperature","chemistry"):
         bx,by=85,340; rr(d,(bx,by,bx+370,by+235),30,navy,outline="#FFFFFF",width=6)
         rr(d,(bx+370,by+75,bx+397,by+160),10,navy)
