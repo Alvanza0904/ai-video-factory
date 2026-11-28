@@ -204,7 +204,8 @@ def draw_frame(scene, idx, total):
     d.rectangle((0,0,W,165),fill=navy)
     rr(d,(25,22,515,57),12,"#234657")
     d.text((42,31),"EXPLAINER LAB  /  "+ACTIVE_BRAND,font=font(12,True),fill=lime)
-    centered(d,scene["title"],82,font(25,True),"#FFFFFF",470)
+    title_y=82+int(18*(1-ease(p*4)))
+    centered(d,scene["title"],title_y,font(25,True),"#FFFFFF",470)
     v=scene["visual"]
     def pill(box,label,fill=teal,fg="#FFFFFF",fs=15):
         rr(d,box,16,fill); x1,y1,x2,y2=box
@@ -288,7 +289,10 @@ def draw_frame(scene, idx, total):
             d.line((82+slide,y+41,92+slide,y+50,108+slide,y+31),fill=navy,width=5)
             d.text((137+slide,y+29),label,font=font(15,True),fill="#FFFFFF")
     else: draw_person(d,270,440,p)
-    cap=caption_lines(scene.get("narration",""),font(18,True),460)[:3]
+    words=scene.get("narration","").split()
+    chunks=[" ".join(words[i:i+7]) for i in range(0,len(words),7)] or [""]
+    active_chunk=min(len(chunks)-1,int(p*len(chunks)))
+    cap=caption_lines(chunks[active_chunk],font(18,True),460)[:2]
     panel_y=824; rr(d,(22,808,518,940),18,"#FFFFFF",outline="#C7DAD6",width=2)
     for line in cap:
         centered(d,line,panel_y,font(18,True),ink,460); panel_y+=27
