@@ -344,6 +344,7 @@ def neural_voice(scene_texts):
     voice_id=os.environ.get("ELEVENLABS_VOICE_ID","UFHqTMrq8xJwvZqvLPBv")
     model_id=os.environ.get("ELEVENLABS_MODEL_ID","eleven_multilingual_v2")
     edge_voice=os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural")
+    provider="ElevenLabs "+voice_id if api_key else "Microsoft Edge Neural Indonesian"
     for index,text in enumerate(scene_texts,1):
         mp3=WORK/f"voice-{index:02d}.mp3"; wav=WORK/f"voice-{index:02d}.wav"
         if api_key:
@@ -367,7 +368,7 @@ def neural_voice(scene_texts):
                 if error.code==402 and api_error.get("code")=="paid_plan_required":
                     print("WARNING: ElevenLabs API key valid, tetapi voice library ini memerlukan paket berbayar. Menggunakan fallback Microsoft Edge Indonesian Neural untuk render ini.",flush=True)
                     provider="Microsoft Edge Neural (fallback: ElevenLabs voice requires paid plan)"
-                    proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",edge_voice,"--rate=-4%","--pitch=-1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
+                    proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",edge_voice,"--rate=+1%","--pitch=+1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
                     if proc.returncode or not mp3.exists() or mp3.stat().st_size<1000:
                         raise RuntimeError("Fallback Edge TTS gagal: "+proc.stderr[-500:])
                 else:
@@ -392,64 +393,48 @@ def neural_voice(scene_texts):
     return output,durations
 
 def make_sound_design(scenes, scene_durations, total_duration):
-    """Quiet, scene-aware sound cues; narration remains the clear foreground."""
+    """Adaptive music bed plus scene-synced procedural and AI Foley."""
     import random, struct
     rate=24000; count=int(total_duration*rate)
     fx=[0.0]*count; music=[0.0]*count; rng=random.Random(91)
-    # Soft harmonic bed only: no constant kick, hats or busy rhythmic pulse.
     chords=[(110.0,138.59,164.81),(98.0,123.47,146.83),(123.47,155.56,185.0),(110.0,138.59,164.81)]
     for i in range(count):
-        t=i/rate; chord=chords[int(t/4)%len(chords)]
-        pad=sum(math.sin(2*math.pi*f*t + .12*math.sin(2*math.pi*.12*t)) for f in chord)/3
-        shimmer=math.sin(2*math.pi*440*t)*.08
-        swell=.72+.28*math.sin(2*math.pi*.07*t)
-        music[i]=(pad*.20+shimmer*.12)*swell
-    cursor=0.0
-    cue_map={
-      "car":("soft_whoosh",.18,.30),
-      "battery":("low_energy",.22,.42),
-      "charging":("electric",.16,.38),
-      "temperature":("soft_whoosh",.14,.26),
-      "chemistry":("low_energy",.12,.34),
-      "motor":("motor",.20,.52),
-      "energy":("motor",.16,.42),
-      "ac":("electric",.13,.34),
-      "dc":("electric",.13,.34),
-      "system":("soft_whoosh",.10,.25),
-      "checklist":("soft_tick",.10,.12),
-      "chart":("soft_tick",.09,.12),
-      "question":("soft_whoosh",.13,.28),
-      "threecars":("soft_whoosh",.12,.26),
-      "hybrid":("low_energy",.12,.28),
-      "parts":("soft_tick",.09,.12)
-    }
+        t=i/rate; chord=chords[int(t/5.5)%len(chords)]
+        motion=.5+.5*math.sin(2*math.pi*.055*t)
+        pad=sum(math.sin(2*math.pi*f*t+.10*math.sin(2*math.pi*.09*t)) for f in chord)/3
+        octave=math.sin(2*math.pi*chord[0]*2*t)*.16
+        air=math.sin(2*math.pi*660*t+.4*math.sin(2*math.pi*.17*t))*.035
+        music[i]=(pad*.16+octave*.035+air)*(.72+.18*motion)
+    cue_map={"car":("whoosh",.15,.42),"battery":("energy",.16,.48),"charging":("electric",.13,.42),
+      "temperature":("whoosh",.10,.34),"chemistry":("energy",.10,.38),"motor":("motor",.16,.58),
+      "energy":("motor",.13,.50),"ac":("electric",.11,.40),"dc":("electric",.11,.40),
+      "system":("whoosh",.09,.34),"checklist":("click",.08,.16),"chart":("click",.07,.16),
+      "question":("whoosh",.12,.40),"threecars":("whoosh",.10,.38),"hybrid":("energy",.10,.38),"parts":("click",.07,.16)}
+    cursor=0.0; events=[]
     for scene,duration in zip(scenes,scene_durations):
-        visual=scene.get("visual","")
-        cue=cue_map.get(visual)
+        cue=cue_map.get(scene.get("visual",""))
         if cue:
-            kind,level,length_s=cue
-            # One understated cue near the visual reveal, not a stack of effects per scene.
-            at=cursor+min(.38,max(.10,duration*.18))
+            kind,level,length_s=cue; at=cursor+min(.42,max(.12,duration*.20))
             start=int(at*rate); length=int(length_s*rate)
             for j in range(length):
                 pos=start+j
                 if pos>=count: break
-                t=j/rate; q=j/max(1,length); env=(1-q)**2
-                if kind=="soft_whoosh":
-                    val=(rng.random()*2-1)*math.sin(math.pi*q)*env
-                elif kind=="low_energy":
-                    val=(math.sin(2*math.pi*(92+18*q)*t)+.22*math.sin(2*math.pi*184*t))*env
+                t=j/rate; q=j/max(1,length); env=math.sin(math.pi*q)**1.4
+                if kind=="whoosh":
+                    noise=rng.random()*2-1
+                    val=(noise*.35+math.sin(2*math.pi*(180+520*q)*t)*.65)*env
+                elif kind=="energy": val=(math.sin(2*math.pi*(72+28*q)*t)+.28*math.sin(2*math.pi*144*t))*env
                 elif kind=="electric":
-                    val=(math.sin(2*math.pi*520*t)+.28*math.sin(2*math.pi*780*t))*env
+                    freq=380+560*q; val=(math.sin(2*math.pi*freq*t)+.22*math.sin(2*math.pi*freq*1.51*t))*env
                 elif kind=="motor":
-                    freq=62+24*math.sin(2*math.pi*q)
-                    val=(math.sin(2*math.pi*freq*t)+.18*math.sin(2*math.pi*freq*2*t))*env
-                else:
-                    val=(rng.random()*2-1)*env*.22
+                    freq=58+48*q+8*math.sin(2*math.pi*q)
+                    val=(math.sin(2*math.pi*freq*t)+.24*math.sin(2*math.pi*freq*2*t))*env
+                else: val=(rng.random()*2-1)*env*.35+math.sin(2*math.pi*1250*t)*env*.18
                 fx[pos]+=val*level
+            events.append((kind,at))
         cursor+=duration+.24
     sfx_path=WORK/"sound-effects.wav"; music_path=WORK/"music-bed.wav"
-    for path,data,scale in ((sfx_path,fx,.48),(music_path,music,.36)):
+    def write_wav(path,data,scale):
         with wave.open(str(path),"wb") as wf:
             wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(rate)
             chunk=bytearray()
@@ -457,8 +442,48 @@ def make_sound_design(scenes, scene_durations, total_duration):
                 sample=max(-32767,min(32767,int(value*scale*32767)))
                 chunk.extend(struct.pack("<h",sample))
             wf.writeframes(chunk)
+    write_wav(sfx_path,fx,.34); write_wav(music_path,music,.34)
+    api_key=os.environ.get("ELEVENLABS_API_KEY","").strip()
+    if api_key and events:
+        prompts={
+          "whoosh":"A short soft cinematic air whoosh transition, smooth rising sweep and gentle airy tail, clean studio sound, subtle, no music, no voice.",
+          "energy":"A warm low electronic energy pulse powering up, restrained sub-bass swell with a clean resonant tail, subtle educational technology Foley, no music, no voice.",
+          "electric":"A precise electric current activation sound, tiny bright electrical shimmer and a soft rising digital chirp, clean and understated, no music, no voice.",
+          "motor":"A compact electric motor rotor spinning up smoothly, realistic low mechanical whirr with a brief pitch rise and soft stop, no harsh buzz, no music, no voice.",
+          "click":"A quiet premium interface confirmation tick, crisp muted mechanical-glass click with a very short tail, no music, no voice."}
+        generated={}
+        for kind in sorted({event[0] for event in events}):
+            try:
+                payload=json.dumps({"text":prompts[kind],"model_id":"eleven_text_to_sound_v3","duration_seconds":1.0 if kind!="motor" else 1.35,"prompt_influence":0.58,"loop":False}).encode("utf-8")
+                req=urllib.request.Request("https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128",data=payload,headers={"xi-api-key":api_key,"Content-Type":"application/json","Accept":"audio/mpeg"},method="POST")
+                with urllib.request.urlopen(req,timeout=120) as response: raw=response.read()
+                if len(raw)<1000: raise RuntimeError("audio response too small")
+                mp3=WORK/f"sfx-ai-{kind}.mp3"; wav=WORK/f"sfx-ai-{kind}.wav"; mp3.write_bytes(raw)
+                run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(mp3),"-af","highpass=f=100,lowpass=f=9500,loudnorm=I=-22:TP=-2:LRA=7","-ar",str(rate),"-ac","1","-c:a","pcm_s16le",str(wav)])
+                generated[kind]=wav; print(f"ElevenLabs SFX generated: {kind}",flush=True)
+            except urllib.error.HTTPError as error:
+                detail=error.read().decode("utf-8",errors="replace")[:300]
+                print(f"WARNING: ElevenLabs SFX {kind} unavailable (HTTP {error.code}); using procedural Foley. {detail}",flush=True)
+            except Exception as error: print(f"WARNING: ElevenLabs SFX {kind} failed; using procedural Foley: {str(error)[:200]}",flush=True)
+        if generated:
+            cmd=["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(sfx_path)]
+            active=[]; next_input=1
+            for kind,at in events:
+                if kind not in generated: continue
+                cmd += ["-i",str(generated[kind])]; active.append((next_input,at)); next_input+=1
+            if active:
+                filters=["[0:a]volume=.72[base]"]; labels=["[base]"]
+                for n,(input_index,at) in enumerate(active,1):
+                    delay=max(0,int(at*1000))
+                    filters.append(f"[{input_index}:a]volume=.48,afade=t=in:st=0:d=.025,afade=t=out:st=.72:d=.28,adelay={delay}|{delay},atrim=duration={total_duration:.3f}[g{n}]")
+                    labels.append(f"[g{n}]")
+                filters.append("".join(labels)+f"amix=inputs={len(labels)}:duration=first:normalize=0,alimiter=limit=.88[out]")
+                mixed=WORK/"sound-effects-mixed.wav"
+                try:
+                    run(cmd+["-filter_complex",";".join(filters),"-map","[out]","-t",f"{total_duration:.3f}",str(mixed)])
+                    mixed.replace(sfx_path)
+                except Exception as error: print(f"WARNING: generated SFX mix failed; keeping procedural Foley: {str(error)[:200]}",flush=True)
     return sfx_path,music_path
-
 
 def main():
     global ACTIVE_BRAND
@@ -490,7 +515,7 @@ def main():
     run(["ffmpeg","-hide_banner","-loglevel","error","-y",*inputs,"-filter_complex",";".join(filters),"-map",current,"-an","-r","30","-c:v","libx264","-preset","veryfast","-crf","21","-pix_fmt","yuv420p",str(edited)])
     sfx,music=make_sound_design(scenes,[d+.24 for d in spoken],total_video)
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(edited),"-i",str(audio),"-i",str(music),"-i",str(sfx),"-filter_complex",
-         "[1:a]highpass=f=75,volume=1.0,acompressor=threshold=-20dB:ratio=2:attack=18:release=220,asplit=2[voice][voicectrl];[2:a]lowpass=f=4200,volume=.15[bedin];[bedin][voicectrl]sidechaincompress=threshold=0.025:ratio=8:attack=25:release=420[bed];[3:a]lowpass=f=5000,highpass=f=90,volume=.48[fx];[voice][bed][fx]amix=inputs=3:duration=longest:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=.92[a]",
+         "[1:a]highpass=f=80,lowpass=f=10500,equalizer=f=180:t=q:w=1:g=1.2,equalizer=f=3200:t=q:w=1:g=1.4,volume=1.05,acompressor=threshold=-22dB:ratio=2.4:attack=12:release=260:makeup=1.4,asplit=3[voice][musicctrl][fxctrl];[2:a]lowpass=f=5200,volume=.13[bedin];[bedin][musicctrl]sidechaincompress=threshold=0.018:ratio=10:attack=18:release=520[bed];[3:a]lowpass=f=7800,highpass=f=100,volume=.34[fxin];[fxin][fxctrl]sidechaincompress=threshold=0.025:ratio=5:attack=8:release=260[fx];[voice][bed][fx]amix=inputs=3:duration=longest:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=9,alimiter=limit=.90[a]",
          "-map","0:v:0","-map","[a]","-t",f"{total_video:.2f}","-r","30","-c:v","copy","-c:a","aac","-b:a","192k","-pix_fmt","yuv420p","-movflags","+faststart",str(OUT)])
     final=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration,size:stream=codec_name,width,height","-of","json",str(OUT)]))
     video=next((x for x in final["streams"] if x.get("codec_name")=="h264"),None)
