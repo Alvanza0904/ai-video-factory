@@ -27,16 +27,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core
           python -m pip install --upgrade pip
-          pip install --only-binary=:all: pillow piper-tts
-      - name: Download Indonesian voice model
-        run: |
-          mkdir -p models
-          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx" -o models/id_ID-news_tts-medium.onnx
-          curl -fL --retry 3 "https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx.json" -o models/id_ID-news_tts-medium.onnx.json
+          pip install --only-binary=:all: pillow edge-tts
       - name: Generate a real Indonesian voice and animated MP4
         env:
           SMOKE_TEST: "1"
-          PIPER_MODEL: models/id_ID-news_tts-medium.onnx
+          EDGE_TTS_VOICE: id-ID-ArdiNeural
         run: python3 scripts/education_animation.py
       - name: Upload sample video
         uses: actions/upload-artifact@v4
