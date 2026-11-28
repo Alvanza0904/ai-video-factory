@@ -359,9 +359,21 @@ def neural_voice(scene_texts):
                 if mp3.stat().st_size<1000:
                     raise RuntimeError("ElevenLabs mengembalikan audio kosong.")
             except urllib.error.HTTPError as error:
-                detail=error.read().decode("utf-8",errors="replace")[:500]
-                raise RuntimeError(f"ElevenLabs TTS HTTP {error.code}: {detail}") from None
+                detail=error.read().decode("utf-8",errors="replace")[:1200]
+                try:
+                    api_error=json.loads(detail).get("detail",{})
+                except (ValueError,AttributeError):
+                    api_error={}
+                if error.code==402 and api_error.get("code")=="paid_plan_required":
+                    print("WARNING: ElevenLabs API key valid, tetapi voice library ini memerlukan paket berbayar. Menggunakan fallback Microsoft Edge Indonesian Neural untuk render ini.",flush=True)
+                    provider="Microsoft Edge Neural (fallback: ElevenLabs voice requires paid plan)"
+                    proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",edge_voice,"--rate=-4%","--pitch=-1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
+                    if proc.returncode or not mp3.exists() or mp3.stat().st_size<1000:
+                        raise RuntimeError("Fallback Edge TTS gagal: "+proc.stderr[-500:])
+                else:
+                    raise RuntimeError(f"ElevenLabs TTS HTTP {error.code}: {detail}") from None
         else:
+            provider="Microsoft Edge Neural"
             proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",edge_voice,"--rate=-4%","--pitch=-1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
             if proc.returncode or not mp3.exists() or mp3.stat().st_size<1000:
                 raise RuntimeError("Neural TTS gagal: "+proc.stderr[-500:])
@@ -376,6 +388,7 @@ def neural_voice(scene_texts):
         for i,clip in enumerate(clips):
             with wave.open(str(clip),"rb") as part: combined.writeframes(part.readframes(part.getnframes()))
             if i<len(clips)-1: combined.writeframes(silence)
+    os.environ["AVF_TTS_PROVIDER"]=provider
     return output,durations
 
 def make_sound_design(scenes, scene_durations, total_duration):
@@ -483,7 +496,7 @@ def main():
     video=next((x for x in final["streams"] if x.get("codec_name")=="h264"),None)
     if not video or video.get("width")!=1080 or video.get("height")!=1920: raise RuntimeError("Output bukan H.264 1080x1920.")
     if OUT.stat().st_size<100000: raise RuntimeError("File MP4 terlalu kecil.")
-    blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),"style":"2D animated explainer with edited transitions, kinetic captions and synchronized sound design","voice":("ElevenLabs "+os.environ.get("ELEVENLABS_VOICE_ID","UFHqTMrq8xJwvZqvLPBv")) if os.environ.get("ELEVENLABS_API_KEY") else ("Microsoft neural Indonesian "+os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural")),"scene_audio_durations":spoken,"scenes":scenes}
+    blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),"style":"2D animated explainer with edited transitions, kinetic captions and synchronized sound design","voice":os.environ.get("AVF_TTS_PROVIDER",("ElevenLabs "+os.environ.get("ELEVENLABS_VOICE_ID","UFHqTMrq8xJwvZqvLPBv")) if os.environ.get("ELEVENLABS_API_KEY") else ("Microsoft neural Indonesian "+os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural"))),"scene_audio_durations":spoken,"scenes":scenes}
     (WORK/"blueprint.json").write_text(json.dumps(blueprint,ensure_ascii=False,indent=2),encoding="utf-8")
     if os.environ.get("SMOKE_TEST")=="1":
         print(f"SMOKE PASS: {final['format']['duration']}s, {OUT.stat().st_size} bytes, neural narration + transitions + SFX.",flush=True); return
