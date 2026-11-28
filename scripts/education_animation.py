@@ -193,162 +193,107 @@ def draw_person(d, cx, cy, phase):
     d.arc((cx-18,cy-65,cx+18,cy-38),0,180,fill="#8E5148",width=3)
 
 def draw_frame(scene, idx, total):
-    p = idx / max(1,total-1)
-    img=Image.new("RGB",(W,H),(12,20,31))
-    d=ImageDraw.Draw(img)
-    accent="#B8F36A"; cyan="#65D8F2"; white="#F3F7FA"; muted="#A9B8C8"
-    # Layered city / road background with continuous parallax.
-    for y in range(H):
-        t=y/H
-        col=tuple(int(a*(1-t)+b*t) for a,b in zip((13,25,39),(24,43,57)))
-        d.line((0,y,W,y),fill=col)
-    for j in range(11):
-        x=(j*63-int(p*95))%650-55
-        bh=120+(j*47)%190
-        d.rectangle((x,500-bh,x+42,500),fill="#1C3445",outline="#29495A")
-        for wy in range(4):
-            for wx in range(2):
-                d.rectangle((x+8+wx*17,510-bh+wy*35,x+14+wx*17,520-bh+wy*35),fill="#36566A")
-    # Moving road and dashed lane lines.
-    d.rectangle((0,590,W,745),fill="#263744")
-    d.line((0,665,W,665),fill="#DCE6E8",width=3)
+    p=idx/max(1,total-1); ease=lambda x:max(0,min(1,x))**2*(3-2*max(0,min(1,x)))
+    img=Image.new("RGB",(W,H),"#EAF2EF"); d=ImageDraw.Draw(img)
+    navy="#122B3A"; ink="#173746"; teal="#18A6A0"; lime="#C6F36A"; blue="#59C7E8"
     for j in range(8):
-        x=(j*100-int(p*260))%650-40
-        d.rounded_rectangle((x,657,x+48,672),radius=5,fill="#E6E8DC")
-    # Small moving traffic gives every scene a sense of life.
-    for j in range(3):
-        cx=(j*245+int(p*260))%760-100
-        draw_car(d,cx,625,0.25, "#65D8F2" if j%2 else "#F6B35B",p*5+j)
-    # Header is compact; content owns the frame.
-    rr(d,(24,28,W-24,76),16,"#203545",outline="#3B586A")
-    d.text((42,43),"AUTO EXPLAINER  •  ANIMATED",font=font(14,True),fill=accent)
-    # Animated scene title enters from below, then settles.
-    title_y=104+int(24*(1-min(1,p*4)))
-    centered(d,scene["title"],title_y,font(27,True),white,470)
+        x=(j*105-int(p*145))%720-90
+        d.polygon([(x,0),(x+48,0),(x-95,960),(x-143,960)],fill="#E2ECE8")
+    d.rectangle((0,0,W,165),fill=navy)
+    rr(d,(25,22,515,57),12,"#234657")
+    d.text((42,31),"EXPLAINER LAB  /  "+ACTIVE_BRAND,font=font(12,True),fill=lime)
+    centered(d,scene["title"],82,font(25,True),"#FFFFFF",470)
     v=scene["visual"]
-    # Motion helpers.
-    def particle_path(x1,y1,x2,y2,count=7):
+    def pill(box,label,fill=teal,fg="#FFFFFF",fs=15):
+        rr(d,box,16,fill); x1,y1,x2,y2=box
+        centered(d,label,y1+(y2-y1-fs)//2,font(fs,True),fg,x2-x1-14)
+    def particles(x1,y1,x2,y2,count=9,phase=0):
         for k in range(count):
-            q=(p*1.7+k/count)%1
-            x=int(x1+(x2-x1)*q); y=int(y1+(y2-y1)*q)
-            r=4+(k%3)
-            d.ellipse((x-r,y-r,x+r,y+r),fill=accent,outline="#E8FFC0")
-    def component(box,label,fill,sub=None):
-        rr(d,box,20,fill,outline="#DCEAF0",width=3)
-        x1,y1,x2,y2=box
-        centered(d,label,y1+18,font(17,True),white,x2-x1-16)
-        if sub: centered(d,sub,y1+49,font(12),muted,x2-x1-12)
+            q=(p*1.7+k/count+phase)%1; x=int(x1+(x2-x1)*q); y=int(y1+(y2-y1)*q); r=3+k%3
+            d.ellipse((x-r,y-r,x+r,y+r),fill=teal,outline="#FFFFFF")
+    def arrow(x1,y1,x2,y2,color=teal,width=7):
+        d.line((x1,y1,x2,y2),fill=color,width=width)
+        ang=math.atan2(y2-y1,x2-x1)
+        d.polygon([(x2,y2),(x2+18*math.cos(ang+2.5),y2+18*math.sin(ang+2.5)),(x2+18*math.cos(ang-2.5),y2+18*math.sin(ang-2.5))],fill=color)
+    def motor(cx,cy,r=110):
+        d.ellipse((cx-r,cy-r,cx+r,cy+r),fill=navy,outline=blue,width=10)
+        d.ellipse((cx-r+22,cy-r+22,cx+r-22,cy+r-22),outline="#D4E7E7",width=8)
+        angle=p*math.pi*10
+        for k in range(8):
+            a=angle+k*math.pi/4
+            d.line((cx+math.cos(a)*25,cy+math.sin(a)*25,cx+math.cos(a)*(r-30),cy+math.sin(a)*(r-30)),fill=lime if k%2==0 else blue,width=12)
+        d.ellipse((cx-25,cy-25,cx+25,cy+25),fill=lime,outline="#FFFFFF",width=4)
+        st=int(p*300); d.arc((cx-r-22,cy-r-22,cx+r+22,cy+r+22),st,st+120,fill=teal,width=9)
+    # Each visual family gets its own composition and continuous action.
     if v in ("car","threecars","hybrid"):
-        # Driving car with wheel rotation, acceleration streaks and moving energy trail.
-        shift=int(-70+210*p)
-        for k in range(5):
-            xx=45+k*24+int(p*90)%35
-            d.line((xx,540,xx+18,540),fill=cyan,width=3)
-        draw_car(d,270+shift,470,0.95,accent,p*8)
-        rr(d,(55,570,485,625),15,"#1B3445",outline=cyan)
-        centered(d,"AKSELERASI  •  TORSI  •  GERAK",585,font(15,True),white,400)
-        if v=="threecars":
-            for j,label in enumerate(("BEV","HEV","PHEV")):
-                component((34+j*158,785,178+j*158,850),label,"#28475B")
-        elif v=="hybrid":
-            particle_path(80,690,455,690,9)
-            centered(d,"MESIN + MOTOR LISTRIK",710,font(18,True),white,420)
-    elif v in ("battery","charging","temperature","chemistry"):
-        # Battery cells illuminate one by one; charge stream visibly enters.
-        x,y=105,330
-        rr(d,(x,y,x+330,y+210),28,"#DCE7EB",outline=white,width=5)
-        rr(d,(x+330,y+65,x+355,y+145),9,"#DCE7EB")
+        d.rectangle((0,640,W,735),fill="#C5D3D0")
+        for k in range(8):
+            x=(k*105-int(p*340))%680-70; d.rounded_rectangle((x,680,x+55,689),radius=4,fill="#FFFFFF")
+        shift=int(-100+200*ease(p)); bounce=int(5*math.sin(p*math.pi*8))
+        draw_car(d,270+shift,520+bounce,1.22,lime,p*11)
         for k in range(6):
-            fill="#B8F36A" if k/6 < p else "#527D68"
-            bx=x+17+k*50
-            rr(d,(bx,y+18,bx+42,y+192),9,fill)
-            if k/6 < p:
-                d.ellipse((bx+13,y+65,bx+29,y+81),fill="#F6FFD8")
-        particle_path(20,435,100,435,6)
-        centered(d,"ENERGI TERSIMPAN DI DALAM SEL",575,font(17,True),white,470)
+            x=25+k*23+int(p*100)%30; d.line((x,475,x+18,475),fill=teal,width=4)
+        pill((65,770,475,825),"TORSI  •  AKSELERASI  •  GERAK",navy,lime,16)
+        if v=="threecars":
+            for j,label in enumerate(("BEV","HEV","PHEV")): pill((28+j*165,850,178+j*165,905),label,teal,"#FFFFFF",17)
+        elif v=="hybrid": particles(70,700,470,700,12)
+    elif v in ("battery","charging","temperature","chemistry"):
+        bx,by=85,340; rr(d,(bx,by,bx+370,by+235),30,navy,outline="#FFFFFF",width=6)
+        rr(d,(bx+370,by+75,bx+397,by+160),10,navy)
+        for k in range(7):
+            cx=bx+18+k*48; lit=ease(p*1.35-k*.13)>0.12
+            rr(d,(cx,by+20,cx+39,by+215),10,lime if lit else "#365A63")
+            if lit: d.ellipse((cx+12,by+70,cx+27,by+85),fill="#FFFFFF")
         if v=="charging":
-            d.line((270,650,270,745),fill=cyan,width=10)
-            d.polygon([(250,730),(290,730),(270,765)],fill=cyan)
-            centered(d,"PENGISIAN DAYA",780,font(16,True),accent,400)
+            arrow(30,455,bx-5,455,blue,10); pill((95,640,445,700),"DAYA MASUK KE BATERAI",teal)
         elif v=="temperature":
-            for k in range(4):
-                yy=630-k*30-int(p*20)
-                d.arc((180+k*10,yy,360-k*10,yy+55),190,350,fill="#FF986E",width=7)
-            centered(d,"PANTAU SUHU BATERAI",790,font(16,True),white,420)
+            for k in range(5):
+                yy=660-k*25-int(16*math.sin(p*math.pi*4+k)); d.arc((185+k*7,yy,355-k*7,yy+55),190,350,fill="#F08C65",width=7)
+            pill((95,740,445,800),"PANTAU SUHU SEL",navy,lime)
+        else: pill((85,640,455,700),"ENERGI TERSIMPAN DI DALAM SEL",navy,lime,15)
     elif v in ("motor","energy","ac","dc","system","parts"):
-        # Three linked components show the energy path instead of a decorative ring.
-        y=390
-        component((22,y,166,y+130),"BATERAI","#28536A","ARUS DC")
-        component((198,y,342,y+130),"INVERTER","#36516D","ATUR DAYA")
-        component((374,y,518,y+130),"MOTOR","#28536A","PUTARAN")
-        particle_path(166,y+65,198,y+65,5)
-        particle_path(342,y+65,374,y+65,5)
+        y=330
+        for box,label,sub in [((22,y,164,y+115),"BATERAI","ARUS DC"),((177,y,363,y+115),"INVERTER","KONTROL"),((376,y,518,y+115),"MOTOR","PUTARAN")]:
+            pill(box,label,navy,lime,15); x1,y1,x2,y2=box; centered(d,sub,y1+68,font(12,True),"#D6E6E5",x2-x1-12)
+        particles(164,y+55,177,y+55,5); particles(363,y+55,376,y+55,5,.4); arrow(165,y+140,375,y+140)
         if v in ("motor","energy"):
-            # Cutaway motor with rotating rotor, stator coils and torque arrows.
-            d.ellipse((125,590,415,880),fill="#223B4D",outline="#D7E7EF",width=8)
-            d.ellipse((158,623,382,847),outline=cyan,width=15)
-            d.ellipse((205,670,335,800),fill="#B8F36A",outline=white,width=5)
-            angle=p*math.pi*8
-            for k in range(8):
-                a=angle+k*math.pi/4
-                x1=270+math.cos(a)*45; y1=735+math.sin(a)*45
-                x2=270+math.cos(a)*98; y2=735+math.sin(a)*98
-                d.line((x1,y1,x2,y2),fill="#F6D27A",width=8)
-            d.arc((90,555,450,910),int(20+p*260),int(150+p*260),fill=accent,width=9)
-            d.polygon([(420,640),(449,655),(421,670)],fill=accent)
-            centered(d,"ROTOR BERPUTAR  •  TORSI MENGGERAKKAN RODA",885,font(13,True),white,500)
+            motor(270,650); pill((72,825,468,875),"ROTOR BERPUTAR  •  TORSI",navy,lime,16)
         elif v=="ac":
             for k in range(3):
-                pts=[]
-                for xx in range(40,500,5):
-                    yy=650+k*42+int(math.sin((xx/500*math.pi*5)-p*math.pi*8)*18)
-                    pts.append((xx,yy))
-                d.line(pts,fill=cyan if k==0 else accent,width=4)
-            centered(d,"ARUS BOLAK-BALIK",810,font(17,True),white,440)
+                pts=[(xx,620+k*48+int(math.sin(xx/475*math.pi*5-p*math.pi*9)*22)) for xx in range(35,510,4)]
+                d.line(pts,fill=teal if k==0 else blue,width=5)
+            pill((100,820,440,875),"ARUS BOLAK-BALIK",navy,lime,16)
         elif v=="dc":
-            for k in range(8):
-                xx=50+k*58
-                d.rectangle((xx,690,xx+28,690+int(30+70*p)),fill=accent)
-            centered(d,"ARUS SEARAH MENUJU BATERAI",810,font(17,True),white,460)
+            for k in range(9):
+                xx=42+k*54; h=45+int(70*ease(p*1.5-k*.09)); d.rounded_rectangle((xx,790-h,xx+27,790),radius=6,fill=teal)
+            pill((85,825,455,875),"ARUS SEARAH",navy,lime,16)
+        else: pill((80,620,460,690),"KONTROL DAYA MENYESUAIKAN TENAGA",navy,lime,14)
     elif v=="question":
-        draw_person(d,270,420,p)
-        # Speech bubble pulses in and out.
-        bob=int(8*math.sin(p*math.pi*4))
-        rr(d,(48,650+bob,492,740+bob),24,"#29485A",outline=cyan,width=4)
-        centered(d,"KOK BISA?  •  YUK, KITA BEDAH!",680+bob,font(19,True),white,410)
+        draw_person(d,270,440,p); pulse=int(8*math.sin(p*math.pi*5))
+        rr(d,(40,675+pulse,500,770+pulse),26,navy,outline=teal,width=4)
+        centered(d,"KOK BISA?  •  YUK, KITA BEDAH!",705+pulse,font(19,True),lime,430)
     elif v=="chart":
         for j,label in enumerate(("ENERGI","EFISIENSI","KONDISI")):
-            x=65+j*145; base=740
-            height=int(60+150*min(1,max(0,p*1.8-j*.2)))
-            rr(d,(x,base-height,x+80,base),13,"#244255",outline=cyan if j==1 else "#547084")
-            centered(d,label,base+18,font(12,True),white,100)
-        centered(d,"FAKTOR YANG MEMPENGARUHI",810,font(17,True),white,460)
+            x=65+j*145; base=740; h=int(55+145*ease(p*1.6-j*.18))
+            rr(d,(x,base-h,x+80,base),12,teal if j==1 else navy); centered(d,label,base+17,font(12,True),ink,100)
+        centered(d,"FAKTOR YANG MEMPENGARUHI",800,font(16,True),ink,450)
     elif v=="checklist":
         for j,label in enumerate(("KENALI TEKNOLOGINYA","CEK SPESIFIKASI","PAHAMI KEBUTUHAN")):
-            y=350+j*125
-            slide=int(60*(1-min(1,p*4)))
-            rr(d,(65+slide,y,475+slide,y+78),18,"#203747",outline=accent if j==0 else "#426073")
-            d.ellipse((88+slide,y+22,122+slide,y+56),fill=accent)
-            d.line((97+slide,y+39,105+slide,y+47,116+slide,y+30),fill="#142334",width=5)
-            d.text((140+slide,y+27),label,font=font(16,True),fill=white)
-    else:
-        draw_person(d,270,450,p)
-    # Captions are clean lower-third labels, no oversized opaque slide card.
-    cap=caption_lines(scene.get("narration",""),font(16,True),450)
-    base_y=900 if len(cap)==1 else 870
+            y=355+j*135; slide=int(70*(1-ease(p*4-j*.12))
+            rr(d,(50+slide,y,490+slide,y+82),20,navy,outline=teal,width=3)
+            d.ellipse((72+slide,y+23,116+slide,y+59),fill=lime)
+            d.line((82+slide,y+41,92+slide,y+50,108+slide,y+31),fill=navy,width=5)
+            d.text((137+slide,y+29),label,font=font(15,True),fill="#FFFFFF")
+    else: draw_person(d,270,440,p)
+    cap=caption_lines(scene.get("narration",""),font(18,True),460)[:3]
+    panel_y=865-(len(cap)-1)*29; rr(d,(22,panel_y-15,518,945),18,"#FFFFFF",outline="#C7DAD6",width=2)
     for line in cap:
-        box=d.textbbox((0,0),line,font=font(16,True))
-        tw=box[2]-box[0]
-        rr(d,((W-tw)//2-14,base_y-5,(W+tw)//2+14,base_y+28),10,"#101D29",outline="#456073",width=1)
-        d.text(((W-tw)//2,base_y),line,font=font(16,True),fill=white)
-        base_y+=27
-    # Scene progress and floating kinetic markers.
-    d.rounded_rectangle((32,940,508,950),radius=5,fill="#314353")
-    d.rounded_rectangle((32,940,32+int(476*p),950),radius=5,fill=accent)
-    for k in range(3):
-        xx=45+k*225+int(p*45)
-        d.ellipse((xx,180+k*38,xx+9,189+k*38),fill=cyan if k%2 else accent)
-    return img
+        centered(d,line,panel_y,font(18,True),ink,460); panel_y+=27
+    d.rounded_rectangle((25,950,515,958),radius=4,fill="#C8D8D4")
+    d.rounded_rectangle((25,950,25+int(490*p),958),radius=4,fill=teal)
+    zoom=1+0.025*math.sin(p*math.pi); nw,nh=int(W*zoom),int(H*zoom)
+    img=img.resize((nw,nh),Image.Resampling.LANCZOS); ox=(nw-W)//2+int(5*math.sin(p*math.pi*2)); oy=(nh-H)//2
+    return img.crop((max(0,ox),max(0,oy),max(0,ox)+W,max(0,oy)+H)
 
 def make_subtitles(scenes, voice_duration):
     total_words=sum(max(1,len(s["narration"].split())) for s in scenes)
@@ -371,42 +316,25 @@ def stamp(seconds):
     h,ms=divmod(ms,3600000); m,ms=divmod(ms,60000); s,ms=divmod(ms,1000)
     return f"{h:02}:{m:02}:{s:02},{ms:03}"
 
-def piper_voice(scene_texts):
-    if not MODEL.exists():
-        raise RuntimeError("Model suara Bahasa Indonesia tidak ditemukan.")
-    # Synthesize one complete spoken thought per scene. This gives the TTS a
-    # fresh phrase boundary and adds a short breathing pause between ideas.
-    if isinstance(scene_texts, str):
-        scene_texts = [scene_texts]
-    clips=[]
-    for index, spoken_text in enumerate(scene_texts,1):
-        spoken_text=spoken_text.strip()
-        if not spoken_text:
-            continue
-        clip=WORK/f"voice-{index:02d}.wav"
-        proc=subprocess.run(["piper","--model",str(MODEL),"--length_scale","1.10",
-            "--noise_scale","0.72","--noise_w","0.82","--output_file",str(clip)],
-            input=spoken_text,text=True,capture_output=True)
-        if proc.returncode:
-            raise RuntimeError("Piper TTS gagal: "+proc.stderr[-700:])
-        if not clip.exists() or clip.stat().st_size<1000:
-            raise RuntimeError("Piper tidak menghasilkan audio untuk scene "+str(index))
-        clips.append(clip)
-    if not clips:
-        raise RuntimeError("Naskah suara kosong.")
+def neural_voice(scene_texts):
+    clips=[]; durations=[]; voice=os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural")
+    for index,text in enumerate(scene_texts,1):
+        mp3=WORK/f"voice-{index:02d}.mp3"; wav=WORK/f"voice-{index:02d}.wav"
+        proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",voice,"--rate","+5%","--pitch","+1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
+        if proc.returncode or not mp3.exists() or mp3.stat().st_size<1000:
+            raise RuntimeError("Neural TTS gagal: "+proc.stderr[-500:])
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(mp3),"-ar","48000","-ac","1","-c:a","pcm_s16le",str(wav)])
+        probe=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","json",str(wav)]))
+        durations.append(float(probe["format"]["duration"])); clips.append(wav)
     output=WORK/"narration.wav"
-    with wave.open(str(clips[0]),"rb") as first:
-        params=first.getparams()
-    silence_frames=int(params.framerate*0.20)
-    silence=b"\x00"*(silence_frames*params.nchannels*params.sampwidth)
+    with wave.open(str(clips[0]),"rb") as first: params=first.getparams()
+    silence=b"\x00"*(int(params.framerate*.24)*params.nchannels*params.sampwidth)
     with wave.open(str(output),"wb") as combined:
         combined.setparams(params)
-        for index,clip in enumerate(clips):
-            with wave.open(str(clip),"rb") as part:
-                combined.writeframes(part.readframes(part.getnframes()))
-            if index < len(clips)-1:
-                combined.writeframes(silence)
-    return output
+        for i,clip in enumerate(clips):
+            with wave.open(str(clip),"rb") as part: combined.writeframes(part.readframes(part.getnframes()))
+            if i<len(clips)-1: combined.writeframes(silence)
+    return output,durations
 
 def make_sound_design(scene_durations, total_duration):
     """Create original lightweight whoosh/pop/electric/motor SFX and a rhythmic music bed."""
@@ -464,80 +392,51 @@ def make_sound_design(scene_durations, total_duration):
 def main():
     global ACTIVE_BRAND
     WORK.mkdir(exist_ok=True)
-    if os.environ.get("SMOKE_TEST") == "1":
-        manifest={"jobId":"smoke-test","userId":"smoke-test","expires":"0","signature":"0","brand":"JAECOO","topic":"regenerative braking","duration":30}
-    else:
-        manifest=fetch_manifest()
-    ACTIVE_BRAND=manifest["brand"]
-    topic=manifest["topic"]
-    brand=manifest["brand"]
-    duration=int(manifest["duration"])
+    manifest={"jobId":"smoke-test","userId":"smoke-test","expires":"0","signature":"0","brand":"JAECOO","topic":"regenerative braking","duration":30} if os.environ.get("SMOKE_TEST")=="1" else fetch_manifest()
+    ACTIVE_BRAND=manifest["brand"]; topic=manifest["topic"]; brand=manifest["brand"]; duration=int(manifest["duration"])
     scenes=choose_script(topic,duration)
-    narration=" ".join(s["narration"] for s in scenes)
-    print("Narration:",narration,flush=True)
-    audio=piper_voice([s["narration"] for s in scenes])
-    probe=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","json",str(audio)]))
-    voice_duration=float(probe["format"]["duration"])
-    total_duration=voice_duration+1.8
-    print(f"TTS duration {voice_duration:.2f}s; output {total_duration:.2f}s",flush=True)
-    subs=make_subtitles(scenes,voice_duration)
-    word_counts=[max(1,len(s["narration"].split())) for s in scenes]
-    total_words=sum(word_counts)
-    cursor=0.0
-    clip_paths=[]
-    for n,scene in enumerate(scenes,1):
-        scene_duration=total_duration*word_counts[n-1]/total_words
-        frames=max(30,round(scene_duration*FPS))
-        folder=WORK/f"scene-{n:02d}"
-        folder.mkdir(exist_ok=True)
-        for frame in range(frames):
-            draw_frame(scene,frame,frames).save(folder/f"frame-{frame:04d}.png",optimize=False)
+    print("Narration:", " ".join(x["narration"] for x in scenes),flush=True)
+    audio,spoken=neural_voice([x["narration"] for x in scenes])
+    clip_durations=[d+.48 for d in spoken]
+    total_video=sum(clip_durations)-.28*(len(clip_durations)-1)
+    print(f"Neural voice {sum(spoken):.2f}s; edited video {total_video:.2f}s",flush=True)
+    make_subtitles(scenes,spoken)
+    clips=[]
+    for n,(scene,seconds) in enumerate(zip(scenes,clip_durations),1):
+        frames=max(24,round(seconds*FPS)); folder=WORK/f"scene-{n:02d}"; folder.mkdir(exist_ok=True)
+        for frame in range(frames): draw_frame(scene,frame,frames).save(folder/f"frame-{frame:04d}.png",optimize=False)
         clip=WORK/f"scene-{n:02d}.mp4"
-        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-framerate",str(FPS),
-             "-i",str(folder/"frame-%04d.png"),"-vf","scale=1080:1920:flags=lanczos,fps=30,format=yuv420p",
-             "-an","-c:v","libx264","-preset","ultrafast","-crf","24","-movflags","+faststart",str(clip)])
-        clip_paths.append(clip)
-        cursor+=scene_duration
-    concat=WORK/"concat.txt"
-    concat.write_text("".join("file '"+str(p.resolve())+"'\n" for p in clip_paths),encoding="utf-8")
-    silent=WORK/"silent.mp4"
-    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),
-         "-c","copy","-movflags","+faststart",str(silent)])
-    scene_durations=[total_duration*w/total_words for w in word_counts]
-    sfx,music=make_sound_design(scene_durations,total_duration)
-    vf="null"  # Captions are burned into each animated scene at a controlled size.
-    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio),
-         "-i",str(music),"-i",str(sfx),"-filter_complex",
-         "[1:a]volume=1.0[voice];[2:a]volume=0.16[bed];[3:a]volume=0.42[fx];[voice][bed][fx]amix=inputs=3:duration=first:dropout_transition=1,loudnorm=I=-16:TP=-1.5:LRA=11[a]",
-         "-vf",vf,"-map","0:v:0","-map","[a]","-t",f"{total_duration:.2f}",
-         "-r","30","-c:v","libx264","-preset","veryfast","-crf","22","-c:a","aac","-b:a","160k",
-         "-pix_fmt","yuv420p","-movflags","+faststart",str(OUT)])
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-framerate",str(FPS),"-i",str(folder/"frame-%04d.png"),"-vf","scale=1080:1920:flags=lanczos,fps=30,format=yuv420p","-an","-c:v","libx264","-preset","ultrafast","-crf","23","-movflags","+faststart",str(clip)])
+        clips.append(clip)
+    inputs=[]
+    for clip in clips: inputs += ["-i",str(clip)]
+    filters=[]; current="[0:v]"; accumulated=clip_durations[0]
+    transitions=["smoothleft","fade","smoothright","wipeup","fadeblack","smoothleft","fade"]
+    for i in range(1,len(clips)):
+        out=f"[v{i}]"; filters.append(f"{current}[{i}:v]xfade=transition={transitions[(i-1)%len(transitions)]}:duration=.28:offset={accumulated-.28:.3f}{out}")
+        current=out; accumulated+=clip_durations[i]-.28
+    edited=WORK/"edited-video.mp4"
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y",*inputs,"-filter_complex",";".join(filters),"-map",current,"-an","-r","30","-c:v","libx264","-preset","veryfast","-crf","21","-pix_fmt","yuv420p",str(edited)])
+    sfx,music=make_sound_design([d+.24 for d in spoken],total_video)
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(edited),"-i",str(audio),"-i",str(music),"-i",str(sfx),"-filter_complex",
+         "[1:a]volume=1.12,acompressor=threshold=-18dB:ratio=2.2:attack=15:release=180[voice];[2:a]volume=.24,lowpass=f=9000[bed];[3:a]volume=1.35,highpass=f=100[fx];[voice][bed][fx]amix=inputs=3:duration=longest:dropout_transition=1,loudnorm=I=-15:TP=-1.0:LRA=10,alimiter=limit=.95[a]",
+         "-map","0:v:0","-map","[a]","-t",f"{total_video:.2f}","-r","30","-c:v","copy","-c:a","aac","-b:a","192k","-pix_fmt","yuv420p","-movflags","+faststart",str(OUT)])
     final=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration,size:stream=codec_name,width,height","-of","json",str(OUT)]))
-    video=next((s for s in final["streams"] if s.get("codec_name")=="h264"),None)
-    if not video or video.get("width")!=1080 or video.get("height")!=1920:
-        raise RuntimeError("Quality check gagal: output bukan H.264 1080x1920.")
-    if OUT.stat().st_size<100000:
-        raise RuntimeError("Quality check gagal: file MP4 terlalu kecil.")
-    blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),
-        "style":"2D explainer + cartoon + motion graphics","voice":"Piper Indonesian medium (conversational pacing; limited expressiveness)",
-        "scenes":scenes}
+    video=next((x for x in final["streams"] if x.get("codec_name")=="h264"),None)
+    if not video or video.get("width")!=1080 or video.get("height")!=1920: raise RuntimeError("Output bukan H.264 1080x1920.")
+    if OUT.stat().st_size<100000: raise RuntimeError("File MP4 terlalu kecil.")
+    blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),"style":"2D animated explainer with edited transitions, kinetic captions and synchronized sound design","voice":"Microsoft neural Indonesian "+os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural"),"scene_audio_durations":spoken,"scenes":scenes}
     (WORK/"blueprint.json").write_text(json.dumps(blueprint,ensure_ascii=False,indent=2),encoding="utf-8")
-    if os.environ.get("SMOKE_TEST") == "1":
-        print(f"SMOKE PASS: rendered {final['format']['duration']}s education video ({OUT.stat().st_size} bytes).",flush=True)
-        return
-    params=urllib.parse.urlencode({"job_id":manifest["jobId"],"user_id":manifest["userId"],
-        "expires":manifest["expires"],"signature":manifest["signature"],"run_id":os.environ["GITHUB_RUN_ID"]})
-    req=urllib.request.Request(os.environ["OUTPUT_UPLOAD_BASE_URL"]+"?"+params,data=OUT.read_bytes(),
-        headers={"Content-Type":"video/mp4","Content-Length":str(OUT.stat().st_size),
-        "Authorization":"Bearer "+os.environ["OIDC_TOKEN"],"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.8127.88 Safari/537.36"},method="POST")
+    if os.environ.get("SMOKE_TEST")=="1":
+        print(f"SMOKE PASS: {final['format']['duration']}s, {OUT.stat().st_size} bytes, neural narration + transitions + SFX.",flush=True); return
+    params=urllib.parse.urlencode({"job_id":manifest["jobId"],"user_id":manifest["userId"],"expires":manifest["expires"],"signature":manifest["signature"],"run_id":os.environ["GITHUB_RUN_ID"]})
+    req=urllib.request.Request(os.environ["OUTPUT_UPLOAD_BASE_URL"]+"?"+params,data=OUT.read_bytes(),headers={"Content-Type":"video/mp4","Content-Length":str(OUT.stat().st_size),"Authorization":"Bearer "+os.environ["OIDC_TOKEN"],"User-Agent":"Mozilla/5.0"},method="POST")
     try:
         with urllib.request.urlopen(req,timeout=300) as response:
             result=json.loads(response.read().decode())
             if not result.get("success"): raise RuntimeError("R2 tidak mengonfirmasi unggahan video.")
-    except urllib.error.HTTPError as error:
-        detail = error.read().decode("utf-8", errors="replace")[:1200]
-        raise RuntimeError(f"Upload video ke R2 gagal (HTTP {error.code}): {detail}") from None
-    print(f"SUCCESS: {brand} education video '{topic}' — {final['format']['duration']} sec, {OUT.stat().st_size} bytes.",flush=True)
+    except urllib.error.HTTPError as error: raise RuntimeError(f"Upload video gagal HTTP {error.code}: "+error.read().decode("utf-8",errors="replace")[:1200]) from None
+    print(f"SUCCESS: {brand} '{topic}' — {final['format']['duration']} sec, {OUT.stat().st_size} bytes.",flush=True)
 
 if __name__=="__main__":
     try: main()
