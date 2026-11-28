@@ -33,7 +33,7 @@ def main():
     custom = edu.choose_script("teknologi kendaraan masa depan", 60)
     if len(custom) != 8:
         raise RuntimeError("Custom topic fallback must also contain eight scenes.")
-    subtitles = edu.make_subtitles(edu.choose_script("regenerative braking", 45), 32.0)
+    subtitles = edu.make_subtitles(edu.choose_script("regenerative braking", 45), [4.0]*7)
     content = subtitles.read_text(encoding="utf-8")
     if "-->" not in content or "\\n" in content:
         raise RuntimeError("Subtitle file is malformed.")
