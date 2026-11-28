@@ -298,21 +298,16 @@ def draw_frame(scene, idx, total):
     img=img.resize((nw,nh),Image.Resampling.LANCZOS); ox=(nw-W)//2+int(5*math.sin(p*math.pi*2)); oy=(nh-H)//2
     return img.crop((max(0,ox),max(0,oy),max(0,ox)+W,max(0,oy)+H))
 
-def make_subtitles(scenes, voice_duration):
-    total_words=sum(max(1,len(s["narration"].split())) for s in scenes)
-    cursor=0.0
-    lines=[]
-    for i,s in enumerate(scenes,1):
-        words=max(1,len(s["narration"].split()))
-        duration=voice_duration*words/total_words
-        start=cursor+0.05
-        end=min(voice_duration,cursor+duration)
-        text=s["narration"].replace("--","—")
-        lines.append(f"{i}\n{stamp(start)} --> {stamp(max(start+0.6,end-0.08))}\n{text}\n")
-        cursor+=duration
+def make_subtitles(scenes, durations):
+    cursor=0.0; lines=[]
+    for i,(scene,duration) in enumerate(zip(scenes,durations),1):
+        start=cursor; end=cursor+duration
+        lines.append(f"{i}\n{stamp(start)} --> {stamp(max(start+0.45,end-0.04))}\n{scene['narration']}\n")
+        cursor=end+0.24
     path=WORK/"captions.srt"
     path.write_text("\n".join(lines),encoding="utf-8")
     return path
+
 
 def stamp(seconds):
     ms=int(max(0,seconds)*1000)
