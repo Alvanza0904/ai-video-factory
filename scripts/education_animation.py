@@ -490,7 +490,7 @@ def main():
     run(["ffmpeg","-hide_banner","-loglevel","error","-y",*inputs,"-filter_complex",";".join(filters),"-map",current,"-an","-r","30","-c:v","libx264","-preset","veryfast","-crf","21","-pix_fmt","yuv420p",str(edited)])
     sfx,music=make_sound_design(scenes,[d+.24 for d in spoken],total_video)
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(edited),"-i",str(audio),"-i",str(music),"-i",str(sfx),"-filter_complex",
-         "[1:a]highpass=f=75,volume=1.0,acompressor=threshold=-20dB:ratio=2:attack=18:release=220[voice];[2:a]lowpass=f=4200,volume=.15[bedin];[bedin][voice]sidechaincompress=threshold=0.025:ratio=8:attack=25:release=420[bed];[3:a]lowpass=f=5000,highpass=f=90,volume=.48[fx];[voice][bed][fx]amix=inputs=3:duration=longest:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=.92[a]",
+         "[1:a]highpass=f=75,volume=1.0,acompressor=threshold=-20dB:ratio=2:attack=18:release=220,asplit=2[voice][voicectrl];[2:a]lowpass=f=4200,volume=.15[bedin];[bedin][voicectrl]sidechaincompress=threshold=0.025:ratio=8:attack=25:release=420[bed];[3:a]lowpass=f=5000,highpass=f=90,volume=.48[fx];[voice][bed][fx]amix=inputs=3:duration=longest:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=.92[a]",
          "-map","0:v:0","-map","[a]","-t",f"{total_video:.2f}","-r","30","-c:v","copy","-c:a","aac","-b:a","192k","-pix_fmt","yuv420p","-movflags","+faststart",str(OUT)])
     final=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration,size:stream=codec_name,width,height","-of","json",str(OUT)]))
     video=next((x for x in final["streams"] if x.get("codec_name")=="h264"),None)
