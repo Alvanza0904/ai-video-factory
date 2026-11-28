@@ -47,6 +47,7 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           MANIFEST_URL: https://ai-video-factory-43b.pages.dev/api/jobs/manifest
           OUTPUT_UPLOAD_BASE_URL: https://ai-video-factory-43b.pages.dev/api/jobs/output
+          VEHICLE_ASSET_URL: https://ai-video-factory-43b.pages.dev/api/jobs/vehicle-asset
           FAILURE_REPORT_URL: https://ai-video-factory-43b.pages.dev/api/jobs/failure
           EDGE_TTS_VOICE: id-ID-ArdiNeural
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
