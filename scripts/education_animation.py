@@ -339,12 +339,32 @@ def stamp(seconds):
     return f"{h:02}:{m:02}:{s:02},{ms:03}"
 
 def neural_voice(scene_texts):
-    clips=[]; durations=[]; voice=os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural")
+    clips=[]; durations=[]
+    api_key=os.environ.get("ELEVENLABS_API_KEY","").strip()
+    voice_id=os.environ.get("ELEVENLABS_VOICE_ID","UFHqTMrq8xJwvZqvLPBv")
+    model_id=os.environ.get("ELEVENLABS_MODEL_ID","eleven_multilingual_v2")
+    edge_voice=os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural")
     for index,text in enumerate(scene_texts,1):
         mp3=WORK/f"voice-{index:02d}.mp3"; wav=WORK/f"voice-{index:02d}.wav"
-        proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",voice,"--rate","-4%","--pitch","-1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
-        if proc.returncode or not mp3.exists() or mp3.stat().st_size<1000:
-            raise RuntimeError("Neural TTS gagal: "+proc.stderr[-500:])
+        if api_key:
+            payload=json.dumps({"text":text,"model_id":model_id,"voice_settings":{"stability":0.42,"similarity_boost":0.78,"style":0.28,"use_speaker_boost":True}}).encode("utf-8")
+            req=urllib.request.Request(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_128",
+                data=payload,
+                headers={"xi-api-key":api_key,"Content-Type":"application/json","Accept":"audio/mpeg"},
+                method="POST")
+            try:
+                with urllib.request.urlopen(req,timeout=180) as response:
+                    mp3.write_bytes(response.read())
+                if mp3.stat().st_size<1000:
+                    raise RuntimeError("ElevenLabs mengembalikan audio kosong.")
+            except urllib.error.HTTPError as error:
+                detail=error.read().decode("utf-8",errors="replace")[:500]
+                raise RuntimeError(f"ElevenLabs TTS HTTP {error.code}: {detail}") from None
+        else:
+            proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",edge_voice,"--rate=-4%","--pitch=-1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
+            if proc.returncode or not mp3.exists() or mp3.stat().st_size<1000:
+                raise RuntimeError("Neural TTS gagal: "+proc.stderr[-500:])
         run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(mp3),"-ar","48000","-ac","1","-c:a","pcm_s16le",str(wav)])
         probe=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","json",str(wav)]))
         durations.append(float(probe["format"]["duration"])); clips.append(wav)
@@ -463,7 +483,7 @@ def main():
     video=next((x for x in final["streams"] if x.get("codec_name")=="h264"),None)
     if not video or video.get("width")!=1080 or video.get("height")!=1920: raise RuntimeError("Output bukan H.264 1080x1920.")
     if OUT.stat().st_size<100000: raise RuntimeError("File MP4 terlalu kecil.")
-    blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),"style":"2D animated explainer with edited transitions, kinetic captions and synchronized sound design","voice":"Microsoft neural Indonesian "+os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural"),"scene_audio_durations":spoken,"scenes":scenes}
+    blueprint={"brand":brand,"topic":topic,"duration":float(final["format"]["duration"]),"style":"2D animated explainer with edited transitions, kinetic captions and synchronized sound design","voice":("ElevenLabs "+os.environ.get("ELEVENLABS_VOICE_ID","UFHqTMrq8xJwvZqvLPBv")) if os.environ.get("ELEVENLABS_API_KEY") else ("Microsoft neural Indonesian "+os.environ.get("EDGE_TTS_VOICE","id-ID-ArdiNeural")),"scene_audio_durations":spoken,"scenes":scenes}
     (WORK/"blueprint.json").write_text(json.dumps(blueprint,ensure_ascii=False,indent=2),encoding="utf-8")
     if os.environ.get("SMOKE_TEST")=="1":
         print(f"SMOKE PASS: {final['format']['duration']}s, {OUT.stat().st_size} bytes, neural narration + transitions + SFX.",flush=True); return
