@@ -16,7 +16,7 @@ BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 TOPICS = {
  "regenerative braking": [
   ("Bayangin, saat mobil listrik melambat, sebagian energi geraknya ternyata masih bisa dimanfaatkan lagi. Kok bisa?", "car", "ENERGI SAAT REM, KE MANA?"),
-  ("Di sinilah regenerative braking bekerja. Saat pedal gas dilepas atau rem digunakan, motor listrik bisa berubah fungsi menjadi generator.", "motor", "MOTOR JADI GENERATOR"),
+  ("Di sinilah regenerative braking bekerja. Begitu kamu lepas pedal gas atau mulai mengerem, motor listrik bisa berubah tugas jadi generator.", "motor", "MOTOR JADI GENERATOR"),
   ("Roda yang masih berputar memutar motor. Proses ini menghasilkan energi listrik, bukan sekadar membuang energi menjadi panas.", "energy", "GERAK JADI LISTRIK"),
   ("Listrik yang dihasilkan kemudian diatur sistem kendaraan, lalu dialirkan kembali untuk mengisi baterai.", "battery", "KEMBALI KE BATERAI"),
   ("Efeknya terasa saat perjalanan stop-and-go, karena sebagian energi yang biasanya terbuang bisa dipulihkan.", "car", "MEMBANTU EFISIENSI"),
@@ -25,7 +25,7 @@ TOPICS = {
   ("Jadi, regenerative braking membantu efisiensi dan memberi deselerasi yang bisa diatur. Menarik, kan?", "energy", "SEKARANG KAMU TAHU")
  ],
  "baterai lfp": [
-  ("Pernah dengar baterai LFP, tapi masih bingung apa kelebihannya? Yuk, kita kupas dengan sederhana.", "battery", "KENAPA BATERAI LFP?"),
+  ("Sering dengar istilah baterai LFP, tapi masih bingung maksudnya? Santai, kita bahas pelan-pelan.", "battery", "KENAPA BATERAI LFP?"),
   ("LFP adalah singkatan lithium iron phosphate. Material utamanya terdiri dari lithium, besi, dan fosfat.", "chemistry", "LITHIUM • BESI • FOSFAT"),
   ("Salah satu karakter menariknya adalah stabilitas termal yang baik. Ini penting untuk pengelolaan panas baterai.", "temperature", "STABILITAS TERMAL"),
   ("LFP juga dikenal punya potensi umur siklus yang panjang, tergantung desain sel dan cara penggunaannya.", "chart", "UMUR SIKLUS"),
@@ -35,7 +35,7 @@ TOPICS = {
   ("Nah, sekarang kamu punya gambaran dasar tentang LFP. Simpan video ini kalau penjelasannya bermanfaat.", "question", "PAHAM LFP LEBIH MUDAH")
  ],
  "bev hev phev": [
-  ("BEV, HEV, PHEV. Namanya mirip, tapi jangan sampai tertukar. Cara kerjanya berbeda, lho.", "threecars", "TIGA JENIS, TIGA CARA"),
+  ("BEV, HEV, PHEV. Namanya mirip banget, ya? Tapi jangan ketuker, karena cara kerjanya beda.", "threecars", "TIGA JENIS, TIGA CARA"),
   ("Kita mulai dari BEV. Ini mobil listrik murni: motor listrik menggerakkan roda dan baterai jadi sumber energi utama.", "battery", "BEV • LISTRIK MURNI"),
   ("Karena tidak memakai mesin bensin sebagai penggerak, BEV perlu diisi dari sumber listrik eksternal.", "charging", "BEV DIISI DARI LUAR"),
   ("Berikutnya HEV. Mobil ini menggabungkan mesin bensin dan motor listrik. Baterainya umumnya terisi saat berkendara dan mengerem.", "hybrid", "HEV • HYBRID"),
@@ -45,7 +45,7 @@ TOPICS = {
   ("Jadi, jangan cuma lihat namanya. Pahami sistem tenaga dan cek spesifikasi model yang ingin kamu pilih.", "checklist", "PILIH DENGAN PAHAM")
  ],
  "ac dc charging": [
-  ("Mau isi baterai mobil listrik lebih cepat? Sebelum pilih charger, kenali dulu bedanya AC dan DC.", "charging", "AC VS DC CHARGING"),
+  ("Mau nge-charge mobil listrik? Eits, AC dan DC itu beda, lho. Yuk, lihat bedanya biar nggak salah pilih.", "charging", "AC VS DC CHARGING"),
   ("AC adalah arus bolak-balik. Listrik masuk ke mobil, lalu onboard charger mengubahnya menjadi arus searah untuk baterai.", "ac", "AC • KONVERSI DI MOBIL"),
   ("Karena konversi dilakukan di dalam kendaraan, kecepatan AC dibatasi kemampuan onboard charger.", "battery", "BATAS ONBOARD CHARGER"),
   ("Pada DC, konversi utama sudah dilakukan di stasiun pengisian. Listrik searah kemudian disalurkan ke baterai.", "dc", "DC • KONVERSI DI STASIUN"),
@@ -55,14 +55,14 @@ TOPICS = {
   ("Sekarang bedanya lebih jelas, kan? AC dan DC sama-sama berguna, tinggal sesuaikan dengan kebutuhan.", "question", "PILIH SESUAI KEBUTUHAN")
  ],
  "motor listrik": [
-  ("Mobil listrik bisa melaju tanpa mesin bensin. Jadi, apa yang sebenarnya membuat rodanya berputar? Ini alurnya.", "car", "RAHASIA DI BALIK RODA"),
-  ("Semuanya dimulai dari baterai. Baterai menyimpan energi listrik dalam bentuk arus searah atau DC.", "battery", "1 • BATERAI MENYIMPAN"),
-  ("Saat kamu menekan pedal akselerator, sistem kontrol membaca permintaan tenaga dan mengatur aliran energi.", "system", "2 • KONTROL DAYA"),
-  ("Berikutnya inverter mengatur listrik dari baterai agar sesuai dengan kebutuhan motor listrik.", "motor", "3 • INVERTER MENGATUR ARUS"),
-  ("Motor mengubah energi listrik menjadi putaran mekanis. Putaran inilah yang menghasilkan torsi untuk menggerakkan roda.", "energy", "4 • MOTOR MEMUTAR RODA"),
-  ("Putaran motor diteruskan melalui reduksi gear ke roda. Torsi sejak putaran rendah membuat respons awal terasa spontan.", "car", "5 • RODA BERGERAK"),
-  ("Saat mobil melambat, pada kondisi tertentu motor bisa bekerja sebagai generator dan membantu mengembalikan energi.", "energy", "BONUS • ENERGI DIPULIHKAN"),
-  ("Jadi alurnya: baterai, kontrol daya, inverter, motor, lalu roda. Lebih mudah kalau dilihat tahap demi tahap!", "checklist", "BATERAI → RODA")
+  ("Pernah kepikiran nggak, mobil listrik bisa jalan tanpa mesin bensin? Terus, siapa yang muterin rodanya? Nah, kita ikuti alurnya!", "car", "RAHASIA DI BALIK RODA"),
+  ("Pertama, ada baterai. Anggap saja ini tempat menyimpan energi. Listrik yang keluar berbentuk arus searah alias DC.", "battery", "1 • BATERAI MENYIMPAN"),
+  ("Begitu pedal gas kamu injak, sistem kontrol langsung membaca: mobil butuh tenaga seberapa besar, nih?", "system", "2 • KONTROL DAYA"),
+  ("Lalu listrik masuk ke inverter. Tugasnya mengatur aliran listrik supaya cocok dengan kebutuhan motor. Jadi, bukan asal kirim, ya.", "motor", "3 • INVERTER MENGATUR ARUS"),
+  ("Nah, ini bagian serunya! Motor mengubah energi listrik jadi putaran. Putaran itu menghasilkan torsi yang nantinya bikin roda bergerak.", "energy", "4 • MOTOR MEMUTAR RODA"),
+  ("Putaran motor diteruskan ke roda lewat sistem reduksi gear. Makanya, respons awal mobil listrik bisa terasa spontan.", "car", "5 • RODA BERGERAK"),
+  ("Terus ada bonusnya. Saat mobil melambat, motor bisa berubah fungsi jadi generator dan mengirim sebagian energi kembali ke baterai.", "energy", "BONUS • ENERGI DIPULIHKAN"),
+  ("Jadi gampangnya: baterai, kontrol daya, inverter, motor, lalu roda. Sekarang kebayang, kan, gimana mobil listrik bisa melaju?", "checklist", "BATERAI → RODA")
  ]
 }
 
@@ -384,7 +384,7 @@ def piper_voice(scene_texts):
         if not spoken_text:
             continue
         clip=WORK/f"voice-{index:02d}.wav"
-        proc=subprocess.run(["piper","--model",str(MODEL),"--length_scale","1.04",
+        proc=subprocess.run(["piper","--model",str(MODEL),"--length_scale","1.10",
             "--noise_scale","0.72","--noise_w","0.82","--output_file",str(clip)],
             input=spoken_text,text=True,capture_output=True)
         if proc.returncode:
