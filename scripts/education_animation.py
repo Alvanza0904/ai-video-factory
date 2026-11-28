@@ -337,49 +337,47 @@ def neural_voice(scene_texts):
     return output,durations
 
 def make_sound_design(scene_durations, total_duration):
-    """Create original lightweight whoosh/pop/electric/motor SFX and a rhythmic music bed."""
+    """Build clearly audible original whoosh, impact, electric and motor cues plus a rhythmic bed."""
     import random, struct
-    rate=24000
-    count=int(total_duration*rate)
-    mix=[0.0]*count
-    music=[0.0]*count
-    # Soft upbeat electronic bed: bass pulse, chord pads and a restrained click beat.
+    rate=24000; count=int(total_duration*rate)
+    fx=[0.0]*count; music=[0.0]*count; rng=random.Random(37)
+    # Music: light electronic pulse, bass, kick and crisp off-beat hats.
     chords=[(110.0,138.59,164.81),(98.0,123.47,146.83),(123.47,155.56,185.0),(110.0,138.59,164.81)]
     for i in range(count):
-        t=i/rate
-        beat=int(t*2)%4
-        chord=chords[int(t/2)%len(chords)]
-        pad=sum(math.sin(2*math.pi*f*t)*0.22 for f in chord)/3
-        bass=math.sin(2*math.pi*(55 if beat in (0,2) else 65.4)*t)*0.20
-        pulse=max(0,1-(t*2%1))*0.06
-        music[i]=(pad+bass+pulse)*0.16
-    rng=random.Random(23)
+        t=i/rate; beat=int(t*2); phase=(t*2)%1
+        chord=chords[int(t/2)%4]
+        pad=sum(math.sin(2*math.pi*f*t)*.18 for f in chord)/3
+        bass=math.sin(2*math.pi*(55 if beat%2==0 else 65.4)*t)*(.22*(1-phase))
+        kick=math.sin(2*math.pi*(90-45*min(1,phase*5))*t)*(.38*math.exp(-phase*9)) if phase<.55 else 0
+        hat=(rng.random()*2-1)*.045 if (i%(rate//4))<3 else 0
+        music[i]=(pad*.45+bass*.55+kick*.55+hat)*.34
     cursor=0.0
     for idx,duration in enumerate(scene_durations):
-        # Short whoosh on scene change, then a tactile pop; selected scenes get electric/motor texture.
-        events=[(cursor+0.04,"whoosh"),(cursor+0.32,"pop")]
-        if idx in (1,2,3,4,6): events.append((cursor+0.72,"electric" if idx in (1,3,6) else "motor"))
+        events=[(cursor+.02,"whoosh"),(cursor+.26,"impact"),(cursor+.62,"click")]
+        if idx in (1,2,3,4,6): events.append((cursor+.78,"electric" if idx in (1,3,6) else "motor"))
         for at,kind in events:
             start=int(at*rate)
-            length=int((0.42 if kind=="whoosh" else 0.18 if kind=="pop" else 0.55)*rate)
+            length=int({"whoosh":.48,"impact":.22,"click":.09,"electric":.62,"motor":.72}[kind]*rate)
             for j in range(length):
                 pos=start+j
                 if pos>=count: break
-                t=j/rate
-                env=(1-j/length)
+                t=j/rate; q=j/length; env=(1-q)**1.5
                 if kind=="whoosh":
-                    val=(rng.random()*2-1)*env*env*0.23*math.sin(math.pi*j/length)
-                elif kind=="pop":
-                    val=math.sin(2*math.pi*(180+520*env)*t)*env*0.25
+                    val=(rng.random()*2-1)*env*.72*math.sin(math.pi*q)
+                elif kind=="impact":
+                    val=(math.sin(2*math.pi*(115-65*q)*t)*.75+(rng.random()*2-1)*.12)*env
+                elif kind=="click":
+                    val=(rng.random()*2-1)*env*.52
                 elif kind=="electric":
-                    val=(math.sin(2*math.pi*880*t)+0.35*math.sin(2*math.pi*1320*t))*env*0.10
+                    gate=.55+.45*math.sin(2*math.pi*18*t)
+                    val=(math.sin(2*math.pi*740*t)+.55*math.sin(2*math.pi*1120*t)+.3*math.sin(2*math.pi*1480*t))*env*.34*gate
                 else:
-                    val=math.sin(2*math.pi*(75+95*env)*t)*env*0.18
-                mix[pos]+=val
+                    freq=70+150*q
+                    val=(math.sin(2*math.pi*freq*t)+.35*math.sin(2*math.pi*freq*2*t))*env*.52
+                fx[pos]+=val
         cursor+=duration
-    sfx_path=WORK/"sound-effects.wav"
-    music_path=WORK/"music-bed.wav"
-    for path,data,scale in ((sfx_path,mix,0.8),(music_path,music,0.75)):
+    sfx_path=WORK/"sound-effects.wav"; music_path=WORK/"music-bed.wav"
+    for path,data,scale in ((sfx_path,fx,.95),(music_path,music,.85)):
         with wave.open(str(path),"wb") as wf:
             wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(rate)
             chunk=bytearray()
@@ -388,6 +386,7 @@ def make_sound_design(scene_durations, total_duration):
                 chunk.extend(struct.pack("<h",sample))
             wf.writeframes(chunk)
     return sfx_path,music_path
+
 
 def main():
     global ACTIVE_BRAND
