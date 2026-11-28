@@ -1,44 +1,36 @@
-# AI Animated Education Factory — Motion + Sound Upgrade
+# AI Animated Education Factory — Motion Editing Upgrade
 
-## What this module does
-Creates vertical Indonesian educational explainers with a hook-first script, scene-specific 2D motion, animated component diagrams, moving traffic and parallax city layers, kinetic labels, captions, and a synchronized audio mix.
+## Visual output
+- Vertical 9:16, 1080 × 1920, 30 fps.
+- Scene-specific visual compositions: driving car, battery cells charging, inverter and motor energy flow, rotating rotor, torque arcs, AC/DC waveforms, charts and checklists.
+- Continuous eased movement, animated particles, moving wheels, road motion, rotating motor components and bounded camera movement.
+- Scene transitions are edited with alternating wipes, fades and directional transitions.
+- Captions use a dedicated safe-area panel, larger type and a maximum of three lines. Each scene is timed against its actual generated speech duration.
 
-## Visual direction
-- 9:16 output at 1080 × 1920, H.264, 30 fps.
-- Each scene has its own visual treatment instead of one repeated static card.
-- Battery scenes animate individual cells and charging flow.
-- Electric drivetrain scenes show battery → inverter → motor, animated energy particles, a cutaway rotor, rotating spokes and torque cues.
-- Road scenes include moving traffic, wheel rotation, road markings and acceleration streaks.
-- Scene titles and labels enter with motion; the lower-third captions remain readable.
-- This is a procedural 2D motion-graphics renderer, not frame-by-frame generative video or a fully rigged character animation system.
+## Voice
+- The current prototype uses Microsoft Edge neural Indonesian voice id-ID-ArdiNeural through the community edge-tts client.
+- The worker generates each spoken scene separately and uses the actual audio duration for scene timing.
+- This is a more natural neural voice than the former local Piper news voice, but it is not expressive voice acting and the unofficial Edge TTS route has no production SLA or clear commercial API terms. For commercial-scale use, configure an official licensed TTS provider.
 
-## Audio direction
-- Indonesian Piper narration uses a slower conversational pace and revised everyday-language scripts for supported topics.
-- Scene changes receive generated whoosh and pop cues; electrical and motor scenes receive matching electronic/motor textures.
-- An original synthesized rhythmic bed is mixed under narration and effects.
-- Important limitation: Piper remains a fixed voice and cannot reliably perform nuanced human emotion, laughter or expressive acting. The sound effects and music are procedurally synthesized, not licensed commercial sound libraries. Review the audio and licensing before commercial publication.
+## Sound and editing
+- Generated whoosh, impact, click, electric and motor cues are placed at scene boundaries and action beats.
+- A rhythmic electronic bed is mixed beneath speech; effects have their own gain and are kept audible in the final mix.
+- All audio is normalized and limited to reduce clipping.
 
-## Supported first topics
+## Supported topics
 - Regenerative braking
 - LFP battery basics
 - BEV vs HEV vs PHEV
 - AC vs DC charging
 - How an electric motor works
 
-Custom topics are accepted, but the deterministic fallback is a generic explainer and must be fact-checked before publication.
-
-## Architecture
-- Next.js mobile page and existing Cloudflare Pages Functions.
-- Existing Supabase Auth, project/job tables, R2 manifest and signed output-upload gateway.
-- GitHub Actions runner with Python, Pillow, Piper and FFmpeg.
-- No paid video-generation API is called.
+Custom topics still use a generic deterministic script and must be fact-checked.
 
 ## Workflow
-1. User starts a video job from the dashboard.
-2. The Pages Function creates a project and job, stores a signed manifest in R2, and dispatches GitHub Actions.
-3. The runner creates narration, scene-specific animated frames, generated music and synchronized SFX, then renders MP4.
-4. The output is uploaded through the existing R2 gateway.
-5. The dashboard detects the MP4 and displays the result.
+1. Cloudflare Pages Function creates the project/job and signed manifest.
+2. GitHub Actions runner creates neural narration, scene clips, transitions and audio mix.
+3. The final MP4 uploads to the existing R2 gateway.
+4. The dashboard reconciles the render output and displays the video.
 
-## Remaining quality boundary
-This upgrade materially increases object motion and sound activity, but does not yet provide a true AI storyboard director, neural expressive voice acting, lip-sync, or hand-authored professional character rigs. A more natural expressive voice will require a different voice provider/model and verified usage rights. Every model and asset license must be checked before commercial use.
+## Quality boundary
+This is procedural 2D motion graphics, not fully generative video. The system still needs richer topic-specific storyboards, licensed sound libraries and a licensed expressive voice provider to reach a premium studio standard. Do not claim commercial clearance for the community Edge TTS route.
