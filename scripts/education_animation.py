@@ -404,8 +404,8 @@ def neural_voice(scene_texts):
                     api_error=json.loads(detail).get("detail",{})
                 except (ValueError,AttributeError):
                     api_error={}
-                if error.code==402 and api_error.get("code")=="paid_plan_required":
-                    print("WARNING: ElevenLabs API key valid, tetapi voice library ini memerlukan paket berbayar. Menggunakan fallback Microsoft Edge Indonesian Neural untuk render ini.",flush=True)
+                if error.code in (401, 402, 403):
+                    print("WARNING: ElevenLabs TTS ditolak (HTTP {error.code}; {api_error.get("code", "akses/kuota/voice tidak diizinkan")}). Beralih ke Microsoft Edge Indonesian Neural agar render tetap berjalan.",flush=True)
                     provider="Microsoft Edge Neural (fallback: ElevenLabs voice requires paid plan)"
                     proc=subprocess.run([sys.executable,"-m","edge_tts","--voice",edge_voice,"--rate=+1%","--pitch=+1Hz","--text",text,"--write-media",str(mp3)],capture_output=True,text=True,timeout=180)
                     if proc.returncode or not mp3.exists() or mp3.stat().st_size<1000:
